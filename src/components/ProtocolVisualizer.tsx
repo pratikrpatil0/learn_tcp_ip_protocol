@@ -2,54 +2,86 @@
 
 import { useState, useEffect, useRef } from "react";
 
-type LineParseResult = {
-  state: string;
-  description: string;
-  type: string;
+type PacketState = {
+  id: number;
+  type: "DATA" | "ACK" | "NAK" | "SYN" | "FIN" | "CORRUPT";
+  seq: number;
+  ack: number;
+  position: number; // 0 = Sender, 100 = Receiver
+  direction: "L2R" | "R2L";
+  active: boolean;
 };
 
-// Advanced parser to provide visualization for almost every common line of C code
-const parseCodeLine = (line: string): LineParseResult => {
+type WindowState = {
+  base: number;
+  size: number;
+  nextSeq: number;
+};
+
+// Parser with both kid-friendly descriptions AND technical code information
+const parseContext = (line: string, codeBlock: string[], currentIndex: number, isSender: boolean) => {
   const code = line.toLowerCase();
-  
-  // Empty or comment
-  if (!code.trim() || code.trim().startsWith("//") || code.trim().startsWith("/*")) {
-    return { state: "neutral", description: "Reading comments or whitespace", type: "ignore" };
+  let state = "exec";
+  let desc = "Reading instructions...";
+  let func = "/* executing local logic */";
+  let packetEvt: PacketState | null = null;
+  let moveSlide = 0;
+
+  if (code.includes("sendto(")) {
+    state = "send";
+    desc = isSender ? "Sending Package! 🚀" : "Sending Reply! ✉️";
+    func = "sendto(...)";
+    packetEvt = {
+      id: Math.random(),
+      type: isSender ? "DATA" : "ACK",
+      seq: Math.floor(Math.random() * 100),
+      ack: Math.floor(Math.random() * 100),
+      position: isSender ? 15 : 85,
+      direction: isSender ? "L2R" : "R2L",
+      active: true
+    };
+  } else if (code.includes("recvfrom(")) {
+    state = "receive";
+    desc = "Waiting for mail... 👀";
+    func = "recvfrom(...)";
+  } else if (code.includes("select(") || code.includes("poll") || code.includes("timer")) {
+    state = "timeout";
+    desc = "Watching the clock... ⏰";
+    func = "select() / Timer";
+  } else if (code.includes("timeout") && code.includes("=")) {
+    state = "retransmit";
+    desc = "Oops! Package lost. Resending! 🔄";
+    func = "Timeout Triggered";
+  } else if (code.includes("checksum") || code.includes("parity") || code.includes("crc")) {
+    state = "integrity";
+    desc = "Checking for damages... 🔎";
+    func = "calculate_checksum()";
+  } else if (code.includes("socket(")) {
+    state = "socket";
+    desc = "Opening the post office... 📬";
+    func = "socket(AF_INET, SOCK_DGRAM)";
+  } else if (code.includes("bind(")) {
+    state = "bind";
+    desc = "Setting up our address... 🏠";
+    func = "bind(port)";
+  } else if (code.includes("window_size") || code.includes("cwnd")) {
+    state = "window";
+    desc = "Making room for more boxes... 🛒";
+    func = "Update Window Size";
+  } else if (code.includes("seq") && code.includes("++")) {
+    state = "seq_up";
+    desc = "Stamping next package number! 🏷️";
+    func = "seq_num++";
+    moveSlide = 1;
   }
 
-  // Networking System Calls
-  if (code.includes("socket(")) return { state: "socket", description: "Creating a UDP Network Socket", type: "sys" };
-  if (code.includes("bind(")) return { state: "bind", description: "Binding to the port", type: "sys" };
-  if (code.includes("listen(")) return { state: "listen", description: "Listening for connections...", type: "sys" };
-  if (code.includes("connect(")) return { state: "connect", description: "Establishing connection...", type: "sys" };
-  if (code.includes("sendto(")) return { state: "send", description: "Transmitting packet over network", type: "net" };
-  if (code.includes("recvfrom(")) return { state: "receive", description: "Waiting to receive packet", type: "net" };
-  if (code.includes("select(") || code.includes("poll(") || code.includes("timeout")) return { state: "timeout", description: "Awaiting I/O events or Timeout...", type: "sys" };
-  if (code.includes("close(")) return { state: "close", description: "Closing socket connection", type: "sys" };
-  
-  // Integrity & Logic
-  if (code.includes("parity") || code.includes("checksum") || code.includes("crc")) return { state: "checksum", description: "Calculating Data Integrity (Checksum/Parity)", type: "logic" };
-  if (code.includes("ack") && code.includes("==")) return { state: "ack_check", description: "Verifying Acknowledgement Number", type: "logic" };
-  if (code.includes("seq") && code.includes("=")) return { state: "seq_update", description: "Updating Sequence Number State", type: "logic" };
-  
-  // Local File I/O & Memory
-  if (code.includes("fopen(") || code.includes("fread(") || code.includes("fwrite(")) return { state: "file", description: "Accessing local file system", type: "io" };
-  if (code.includes("malloc(") || code.includes("memset(") || code.includes("bzero(")) return { state: "memory", description: "Managing Memory Buffers", type: "io" };
-  if (code.includes("printf(") || code.includes("perror(")) return { state: "print", description: "Logging to terminal", type: "io" };
-  
-  // General Execution
-  if (code.includes("if ") || code.includes("if(")) return { state: "branch", description: "Evaluating condition (if)", type: "exec" };
-  if (code.includes("while ") || code.includes("while(") || code.includes("for(")) return { state: "loop", description: "Looping logic", type: "exec" };
-  if (code.includes("return ")) return { state: "return", description: "Returning from routine", type: "exec" };
-  if (code.includes("struct ")) return { state: "struct", description: "Defining struct mapping in memory", type: "exec" };
-  
-  return { state: "exec", description: "Executing standard instruction...", type: "exec" };
+  return { state, desc, func, packetEvt, moveSlide };
 };
 
 export default function ProtocolVisualizer() {
   const [version, setVersion] = useState<number>(0);
   
-  // Dual State
+  // Dual Code State
   const [sLines, setSLines] = useState<string[]>([]);
   const [rLines, setRLines] = useState<string[]>([]);
   
@@ -57,99 +89,122 @@ export default function ProtocolVisualizer() {
   const [rIdx, setRIdx] = useState<number>(0);
   
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-  
+  const [speed, setSpeed] = useState<number>(500); // ms per step
+
+  // Network State
+  const [activePackets, setActivePackets] = useState<PacketState[]>([]);
+  const [sWindow, setSWindow] = useState<WindowState>({ base: 0, size: 4, nextSeq: 0 }); // sliding window abstract
+  const [rWindow, setRWindow] = useState<WindowState>({ base: 0, size: 4, nextSeq: 0 });
+
   const senderContainerRef = useRef<HTMLDivElement>(null);
   const receiverContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch both codes
+  // Fetch codes
   useEffect(() => {
     const fetchCode = async () => {
-      setLoading(true);
       try {
         const [resS, resR] = await Promise.all([
           fetch(`/api/code?version=${version}&type=sender`),
           fetch(`/api/code?version=${version}&type=receiver`)
         ]);
-        
         if (resS.ok && resR.ok) {
           const dataS = await resS.json();
           const dataR = await resR.json();
           setSLines(dataS.code.split("\n"));
           setRLines(dataR.code.split("\n"));
-          setSIdx(0);
-          setRIdx(0);
-          setIsPlaying(false);
+          resetEnvironment();
         }
       } catch (err) {
-        console.error("Failed to fetch codes");
+        console.error(err);
       }
-      setLoading(false);
     };
     fetchCode();
   }, [version]);
 
-  // Dual playback synchronizer hook
+  const resetEnvironment = () => {
+    setSIdx(0);
+    setRIdx(0);
+    setIsPlaying(false);
+    setActivePackets([]);
+    setSWindow({ base: 0, size: version > 10 ? 8 : (version > 5 ? 4 : 1), nextSeq: 0 });
+    setRWindow({ base: 0, size: version > 10 ? 8 : (version > 5 ? 4 : 1), nextSeq: 0 });
+  };
+
+  // The engine tick
   useEffect(() => {
     let interval: any;
+    
+    // Abstract packet wire logic (moves packets across screen smoothly)
+    const wireInterval = setInterval(() => {
+      setActivePackets(prev => prev.map(p => {
+        if (!p.active) return p;
+        let newPos = p.direction === "L2R" ? p.position + 15 : p.position - 15;
+        let active = p.direction === "L2R" ? newPos < 85 : newPos > 15;
+        return { ...p, position: newPos, active };
+      }).filter(p => p.active));
+    }, 150);
+
     if (isPlaying) {
       interval = setInterval(() => {
-        setSIdx((prevS) => {
-          setRIdx((prevR) => {
+        setSIdx(prevS => {
+          setRIdx(prevR => {
             const sLine = sLines[prevS] || "";
             const rLine = rLines[prevR] || "";
             
-            const isSenderFinished = prevS >= sLines.length - 1;
-            const isReceiverFinished = prevR >= rLines.length - 1;
-
-            if (isSenderFinished && isReceiverFinished) {
+            const sDone = prevS >= sLines.length - 1;
+            const rDone = prevR >= rLines.length - 1;
+            
+            if (sDone && rDone) {
               setIsPlaying(false);
               return prevR;
             }
 
-            // Simple heuristic to make them feel "network synchronized"
-            // If receiver hits a recv() loop, pause receiver until sender hits send()
-            let receiveBlockingR = rLine.includes("recvfrom");
-            let senderSending = sLine.includes("sendto");
-            
-            let receiveBlockingS = sLine.includes("recvfrom");
-            let receiverSending = rLine.includes("sendto");
-            
+            const sCtx = parseContext(sLine, sLines, prevS, true);
+            const rCtx = parseContext(rLine, rLines, prevR, false);
+
+            if (sCtx.packetEvt) setActivePackets(pkts => [...pkts, sCtx.packetEvt!]);
+            if (rCtx.packetEvt) setActivePackets(pkts => [...pkts, rCtx.packetEvt!]);
+
+            if (sCtx.moveSlide) setSWindow(w => ({ ...w, nextSeq: w.nextSeq + 1 }));
+            if (rCtx.moveSlide) setRWindow(w => ({ ...w, base: w.base + 1 }));
+
+            // Synchronization
+            let rBlocks = rLine.includes("recvfrom");
+            let sBlocks = sLine.includes("recvfrom") || sLine.includes("select");
+            let sSends = sLine.includes("sendto");
+            let rSends = rLine.includes("sendto");
+
             let nextR = prevR;
             let nextS = prevS;
 
-            if (receiveBlockingR && !senderSending && !isSenderFinished) {
-               // R blocks, S progresses
-               nextS++;
-            } else if (receiveBlockingS && !receiverSending && !isReceiverFinished) {
-               // S blocks, R progresses
-               nextR++;
-            } else {
-               // Normal progression
-               if (!isSenderFinished) nextS++;
-               if (!isReceiverFinished) nextR++;
+            if (rBlocks && !sSends && !sDone) nextS++;
+            else if (sBlocks && !rSends && !rDone) nextR++;
+            else {
+               if (!sDone) nextS++;
+               if (!rDone) nextR++;
             }
             
-            // Note: return nextS indirectly via functional state is tricky, 
-            // instead we mutate the mapped states
             setSIdx(nextS); 
             return nextR; 
           });
-          return prevS; // will be overridden inside immediately, ignoring this return
+          return prevS;
         });
-      }, 500); // 0.5s per tick
+      }, speed);
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, sLines, rLines]);
 
-  // Handle smooth auto-scrolling
+    return () => {
+      clearInterval(interval);
+      clearInterval(wireInterval);
+    };
+  }, [isPlaying, sLines, rLines, speed]);
+
+  // Autoscroll
   useEffect(() => {
     if (senderContainerRef.current) {
       const el = senderContainerRef.current.querySelector('.active-s');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [sIdx]);
-
   useEffect(() => {
     if (receiverContainerRef.current) {
       const el = receiverContainerRef.current.querySelector('.active-r');
@@ -157,135 +212,235 @@ export default function ProtocolVisualizer() {
     }
   }, [rIdx]);
 
-  const sParse = sLines.length > 0 ? parseCodeLine(sLines[sIdx]) : { state: "neutral", description: "", type: "none" };
-  const rParse = rLines.length > 0 ? parseCodeLine(rLines[rIdx]) : { state: "neutral", description: "", type: "none" };
+  const sCtx = sLines.length > 0 ? parseContext(sLines[sIdx], sLines, sIdx, true) : { state: "neutral", desc: "", func: "" };
+  const rCtx = rLines.length > 0 ? parseContext(rLines[rIdx], rLines, rIdx, false) : { state: "neutral", desc: "", func: "" };
 
   return (
-    <div className="flex flex-col h-full w-full flex-1 min-h-0 bg-gray-900 border-t border-gray-700">
+    <div className="flex flex-col h-full w-full bg-[#0d1117] text-white">
       
-      {/* Top Toolbar */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700 shadow-sm z-10 w-full shrink-0">
-        
-        <div className="flex items-center space-x-3">
-          <label className="text-gray-300 font-medium whitespace-nowrap">Load Protocol Version:</label>
-          <select 
-            value={version} 
-            onChange={(e) => setVersion(parseInt(e.target.value))}
-            className="bg-gray-700 text-white border border-gray-600 rounded px-4 py-2 focus:outline-none focus:border-blue-500 font-bold"
-          >
-            {Array.from({length: 25}, (_, i) => i).map(v => (
-              <option key={v} value={v}>Version {v}</option>
-            ))}
-          </select>
+      {/* Dynamic Header Controls */}
+      <div className="flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800 shadow-md">
+        <div className="flex items-center space-x-6">
+          <div className="flex flex-col">
+            <label className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">Select Version Architecture</label>
+            <select 
+              value={version} 
+              onChange={(e) => setVersion(parseInt(e.target.value))}
+              className="bg-gray-800 text-white border-2 border-blue-500/50 rounded-lg px-4 py-1.5 focus:border-blue-400 focus:outline-none shadow-inner"
+            >
+              {Array.from({length: 25}, (_, i) => i).map(v => (
+                <option key={v} value={v}>Version {v} {v===0?"(Raw UDP)":v<=5?"(Stop & Wait)":v<=15?"(Sliding Wnd)":"(TCP Congestion)"}</option>
+              ))}
+            </select>
+          </div>
+          <div className="hidden md:flex flex-col">
+            <label className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Execution Speed</label>
+            <input type="range" min="100" max="1500" value={1600 - speed} onChange={(e) => setSpeed(1600 - parseInt(e.target.value))} className="w-32 accent-blue-500" />
+          </div>
         </div>
 
-        <div className="flex items-center space-x-3 ml-auto">
+        <div className="flex flex-col items-center justify-center -mt-1 relative">
+            <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-1">Beginner Network Simulator</span>
+            <span className="text-xs font-mono text-gray-400 text-center w-full block">Understand the Code & Data Flow!</span>
+        </div>
+
+        <div className="flex items-center space-x-3 mt-4 md:mt-0">
           <button 
             onClick={() => setIsPlaying(!isPlaying)}
-            className={`px-6 py-2 font-bold text-white rounded shadow transition-transform hover:scale-105 ${isPlaying ? 'bg-red-600 hover:bg-red-500' : 'bg-green-600 hover:bg-green-500'}`}
+            className={`px-6 py-2 font-bold text-white rounded-lg shadow-lg hover:-translate-y-0.5 transition-all ${isPlaying ? 'bg-gradient-to-r from-red-600 to-red-500' : 'bg-gradient-to-r from-emerald-600 to-teal-500'}`}
           >
-            {isPlaying ? '⏸ Pause Sync' : '▶ Play Simulation'}
+            {isPlaying ? '⏸ Pause' : '▶ Execute Stack'}
           </button>
           <button 
-            onClick={() => { setSIdx(0); setRIdx(0); setIsPlaying(false); }}
-            className="px-6 py-2 font-bold text-gray-200 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600 shadow"
+            onClick={resetEnvironment}
+            className="px-4 py-2 font-bold text-gray-300 bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-600 shadow transition-all"
           >
-            ⏹ Restart
+            ↺ Restart
           </button>
         </div>
       </div>
 
-      {/* Main Split Interface */}
-      <div className="flex-1 flex flex-row min-h-0 w-full">
+      {/* Main 3-Column Interface */}
+      <div className="flex-1 flex min-h-0 w-full p-4 gap-4 bg-[#0a0c10]">
         
-        {/* Left pane: Sender Code */}
-        <div className="flex-1 flex flex-col w-1/3 border-r border-gray-700 min-h-0 relative">
-          <div className="bg-blue-900/30 text-blue-300 text-sm p-3 font-bold border-b border-blue-800/30 shrink-0 text-center uppercase tracking-wide">
-            Sender Logic (sender_{version}.c)
+        {/* SENDER CODE & DATA WINDOW */}
+        <div className="flex flex-col w-[30%] bg-[#161b22] border border-gray-800 rounded-xl overflow-hidden shadow-2xl relative">
+          <div className="bg-gradient-to-b from-blue-900/40 to-[#161b22] p-3 border-b border-blue-900/30 flex justify-between items-center z-10">
+            <span className="font-bold text-blue-400 tracking-wide text-sm flex items-center"><span className="text-xl mr-2">💻</span> Sender Node (C-Code)</span>
+          </div>
+
+          <div ref={senderContainerRef} className="flex-1 overflow-y-auto p-4 font-mono text-[13px] leading-relaxed relative">
+             {sLines.map((line, i) => {
+               const isAct = i === sIdx;
+               return (
+                 <div key={`s-${i}`} onClick={() => { setSIdx(i); setIsPlaying(false); }}
+                   className={`cursor-pointer px-2 py-0.5 whitespace-pre rounded transition-colors ${isAct ? 'bg-blue-600/30 border-l-2 border-blue-500 text-white active-s' : 'hover:bg-gray-800 text-gray-400'}`}
+                 >
+                   <span className="text-gray-600 mr-4 inline-block w-6 text-right select-none">{i+1}</span>
+                   {line}
+                 </div>
+               )
+             })}
           </div>
           
-          <div ref={senderContainerRef} className="flex-1 overflow-y-auto p-4 font-mono text-[13px] bg-[#1e1e1e] leading-relaxed">
-             {loading ? <p className="text-gray-500">Loading code...</p> : (
-               sLines.map((line, i) => (
-                 <div 
-                   key={`s-${i}`} 
-                   onClick={() => { setSIdx(i); setIsPlaying(false); }}
-                   className={`cursor-pointer px-2 py-0.5 whitespace-pre rounded ${i === sIdx ? 'bg-blue-600/40 border border-blue-500/50 active-s' : 'hover:bg-gray-800 text-gray-300'}`}
-                 >
-                   <span className="text-gray-500 mr-3 inline-block w-8 text-right opacity-50 select-none">{i+1}</span>
-                   {line}
-                 </div>
-               ))
-             )}
-          </div>
+          {/* Virtual Sender Buffer / Sliding Window abstract */}
+          {version > 1 && (
+            <div className="h-20 bg-gray-900 border-t border-gray-800 p-2 flex flex-col justify-center">
+               <span className="text-[10px] text-gray-500 font-mono tracking-widest mb-1">SENDER BUFFER / CART (Space: {sWindow.size})</span>
+               <div className="flex gap-1 overflow-hidden">
+                  {Array.from({length: 12}).map((_, i) => (
+                     <div key={i} className={`h-6 w-8 rounded text-[10px] flex items-center justify-center font-bold font-mono transition-all duration-300
+                       ${i < sWindow.base ? 'bg-emerald-900/50 text-emerald-500 border border-emerald-800' : 
+                         (i >= sWindow.base && i < sWindow.base + sWindow.size) ? 
+                            (i < sWindow.nextSeq ? 'bg-yellow-900/50 text-yellow-500 border border-yellow-700' : 'bg-blue-900/50 text-blue-400 border border-blue-800') 
+                         : 'bg-gray-800 text-gray-600 border border-gray-700'}
+                     `}>
+                       {i}
+                     </div>
+                  ))}
+               </div>
+            </div>
+          )}
         </div>
 
-        {/* Center pane: The Live Network Animation Layer */}
-        <div className="flex-1 flex flex-col w-1/3 bg-[#0d1117] relative min-h-0 shadow-2xl z-20">
-           <div className="bg-gray-800 text-gray-300 text-sm p-3 font-bold border-b border-gray-700 shrink-0 text-center uppercase tracking-wide shadow-md">
-             Network Interaction Layer
-           </div>
+        {/* NETWORK SIMULATION STAGE (CENTER) - HYBRID DIAGRAM */}
+        <div className="flex-1 flex flex-col bg-[#e0f0f8] rounded-xl relative shadow-inner overflow-hidden border-4 border-white pb-32">
            
-           <div className="flex-1 flex flex-col items-center justify-between p-6 relative">
+           {/* Connection Information Banner */}
+           <div className="absolute top-4 left-0 right-0 flex justify-center z-10 pointer-events-none">
+              <div className="bg-white/95 px-6 py-2 rounded-xl shadow-lg border-2 border-blue-200 text-center flex flex-col items-center">
+                 <div className="text-sm font-bold text-gray-800 flex items-center justify-center gap-2 mb-1">
+                    <span className="animate-pulse text-green-500">●</span> 
+                    UDP Socket Connection Active
+                 </div>
+                 <div className="flex items-center space-x-3 text-[10px] sm:text-xs text-gray-600 font-mono bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">
+                    <span>IP: 127.0.0.1</span>
+                    <span className="text-blue-400">⟷</span>
+                    <span>IP: 127.0.0.1</span>
+                 </div>
+              </div>
+           </div>
+
+           {/* Hardware Nodes and Connection */}
+           <div className="flex-1 flex items-center justify-between px-8 relative mt-16">
               
-              {/* Sender Node Status */}
-              <div className="bg-gray-800 p-4 border-2 rounded-xl mt-4 w-64 shadow-lg text-center flex flex-col items-center transition-colors duration-300 relative border-blue-500">
-                 <div className="absolute top-[-15px] bg-blue-600 text-xs px-3 py-1 font-bold rounded-full text-white">HOST A: SENDER</div>
-                 <div className="text-3xl mt-2 mb-2">💻</div>
-                 <div className="text-xs text-blue-300 h-8 font-mono">{sParse.description}</div>
-                 {sParse.state === 'socket' && <div className="absolute w-full h-full rounded-xl bg-blue-500/20 animate-ping"></div>}
-                 {sParse.state === 'receive' && <div className="absolute w-full h-full rounded-xl bg-yellow-500/20 animate-pulse"></div>}
-              </div>
-
-              {/* The Network Wire / Visualization Area */}
-              <div className="flex-1 flex items-center justify-center w-full relative">
-                 <div className="w-2 relative h-full bg-gray-700 mx-auto rounded-full overflow-hidden flex flex-col">
-                    {sParse.state === 'send' && (
-                       <div className="w-full h-8 bg-blue-500 rounded-full animate-bounce absolute top-0"></div>
-                    )}
-                    {rParse.state === 'send' && (
-                       <div className="w-full h-8 bg-purple-500 rounded-full animate-bounce absolute bottom-0"></div>
-                    )}
+              {/* SENDER DIAGRAM */}
+              <div className="flex flex-col items-center z-20 w-48">
+                 {/* Speech Bubble with Code Bridge */}
+                 <div className="relative bg-white text-gray-800 px-4 py-2 rounded-2xl shadow-xl font-bold text-sm mb-4 text-center border-2 border-gray-100 min-h-[60px] flex flex-col items-center justify-center
+                                 after:content-[''] after:absolute after:bottom-[-12px] after:left-1/2 after:-translate-x-1/2 after:border-[10px] after:border-transparent after:border-t-white">
+                    <span>{sCtx.desc}</span>
+                    <span className="mt-1 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono border border-blue-200">{sCtx.func}</span>
                  </div>
-                 
-                 {/* Floating connection text */}
-                 <div className="absolute top-1/2 mt-[-30px] font-mono text-gray-500 text-xs tracking-widest rotate-90">
-                    {'<── UDP CHANNEL ──>'}
+                 {/* Computer/House Icon */}
+                 <div className={`w-24 h-24 sm:w-28 sm:h-28  rounded-[2rem] flex flex-col items-center justify-center shadow-2xl transition-all duration-300 border-4 bg-white ${sCtx.state === 'send' ? 'border-blue-400 scale-110 shadow-[0_10px_40px_rgba(59,130,246,0.6)]' : sCtx.state === 'timeout' ? 'border-yellow-400 animate-pulse' : 'border-gray-200'} `}>
+                    <span className="text-5xl sm:text-6xl text-center leading-none">💻</span>
+                 </div>
+                 <div className="mt-4 font-black text-white bg-blue-600 px-4 py-1.5 rounded-full shadow-md text-sm border-2 border-white">
+                    SENDER
                  </div>
               </div>
 
-              {/* Receiver Node Status */}
-              <div className="bg-gray-800 p-4 border-2 rounded-xl mb-4 w-64 shadow-lg text-center flex flex-col items-center transition-colors duration-300 relative border-purple-500">
-                 <div className="absolute top-[-15px] bg-purple-600 text-xs px-3 py-1 font-bold rounded-full text-white">HOST B: RECEIVER</div>
-                 <div className="text-3xl mt-2 mb-2">🖥️</div>
-                 <div className="text-xs text-purple-300 h-8 font-mono overflow-hidden">{rParse.description}</div>
-                 {rParse.state === 'bind' && <div className="absolute w-full h-full rounded-xl bg-green-500/20 animate-pulse"></div>}
-                 {rParse.state === 'receive' && <div className="absolute w-full h-full rounded-xl bg-yellow-500/20 animate-pulse"></div>}
+              {/* The "Road" or Tube */}
+              <div className="absolute left-40 right-40 top-1/2 h-8 bg-yellow-300 border-y-[3px] border-yellow-500 border-dashed -translate-y-1/2 z-0 shadow-inner flex items-center justify-around opacity-70">
+                 <div className="text-yellow-600 font-bold text-xs opacity-50">&gt;&gt;&gt;</div>
+                 <div className="text-yellow-600 font-bold text-xs opacity-50">&gt;&gt;&gt;</div>
+                 <div className="text-yellow-600 font-bold text-xs opacity-50">&gt;&gt;&gt;</div>
+              </div>
+
+              {/* Moving Packages with Code Detail! */}
+              {activePackets.map(pkt => (
+                <div 
+                  key={pkt.id} 
+                  className={`absolute top-1/2 -translate-y-1/2 px-2 py-1 rounded-xl shadow-xl font-bold z-10 transition-all duration-[150ms] ease-linear flex items-center justify-center flex-col`}
+                  style={{ left: `${pkt.position}%`, transform: 'translate(-50%, -50%)' }}
+                >
+                  <div className={`
+                    ${pkt.type === 'DATA' ? 'bg-amber-100 border-2 border-amber-500 text-amber-900' : 'bg-green-100 border-2 border-green-500 text-green-900'}
+                    rounded-lg px-2 py-2 flex flex-col items-center min-w-[80px] shadow-[0_8px_20px_rgba(0,0,0,0.15)]
+                  `}>
+                    <span className="text-xl mb-1">{pkt.type === 'DATA' ? '📦' : '✅'}</span>
+                    <span className="text-[10px] whitespace-nowrap bg-white px-2 py-0.5 rounded border border-gray-200 uppercase font-mono">
+                       {pkt.type === 'DATA' ? `SEQ_NUM: ${pkt.seq}` : `ACK_NUM: ${pkt.ack}`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {/* RECEIVER DIAGRAM */}
+              <div className="flex flex-col items-center z-20 w-48">
+                 {/* Speech Bubble with Code Bridge */}
+                 <div className="relative bg-white text-gray-800 px-4 py-2 rounded-2xl shadow-xl font-bold text-sm mb-4 text-center border-2 border-gray-100 min-h-[60px] flex flex-col items-center justify-center
+                                 after:content-[''] after:absolute after:bottom-[-10px] after:left-1/2 after:-translate-x-1/2 after:border-[10px] after:border-transparent after:border-t-white">
+                    <span>{rCtx.desc}</span>
+                    <span className="mt-1 text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-mono border border-purple-200">{rCtx.func}</span>
+                 </div>
+                 {/* Computer/House Icon */}
+                 <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-[2rem] flex flex-col items-center justify-center shadow-2xl transition-all duration-300 border-4 bg-white ${rCtx.state === 'receive' ? 'border-purple-400 scale-110 shadow-[0_10px_40px_rgba(168,85,247,0.6)]' : rCtx.state === 'integrity' ? 'border-yellow-400' : 'border-gray-200'} `}>
+                    <span className="text-5xl sm:text-6xl text-center leading-none">📱</span>
+                 </div>
+                 <div className="mt-4 font-black text-white bg-purple-600 px-4 py-1.5 rounded-full shadow-md text-sm border-2 border-white">
+                    RECEIVER
+                 </div>
               </div>
 
            </div>
+
+           {/* Live Textual Code Inspector */}
+           <div className="absolute bottom-4 left-4 right-4 bg-white rounded-xl shadow-lg border-2 border-blue-100 p-3 flex flex-col z-20 mx-4">
+              <span className="text-[10px] font-extrabold text-blue-500 uppercase tracking-widest mb-2 flex items-center">
+                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                 Live Code Inspector
+              </span>
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="bg-gray-900 rounded p-2 overflow-hidden flex flex-col">
+                    <span className="text-[9px] text-gray-500 mb-1">Sender's Current Line:</span>
+                    <code className="text-blue-300 text-xs truncate">{sLines[sIdx] || "..."}</code>
+                 </div>
+                 <div className="bg-gray-900 rounded p-2 overflow-hidden flex flex-col">
+                    <span className="text-[9px] text-gray-500 mb-1">Receiver's Current Line:</span>
+                    <code className="text-purple-300 text-xs truncate">{rLines[rIdx] || "..."}</code>
+                 </div>
+              </div>
+           </div>
+
         </div>
 
-        {/* Right pane: Receiver Code */}
-        <div className="flex-1 flex flex-col w-1/3 border-l border-gray-700 min-h-0 relative">
-          <div className="bg-purple-900/30 text-purple-300 text-sm p-3 font-bold border-b border-purple-800/30 shrink-0 text-center uppercase tracking-wide">
-            Receiver Logic (receiver_{version}.c)
+        {/* RECEIVER CODE & DATA WINDOW */}
+        <div className="flex flex-col w-[30%] bg-[#161b22] border border-gray-800 rounded-xl overflow-hidden shadow-2xl relative">
+          <div className="bg-gradient-to-b from-purple-900/40 to-[#161b22] p-3 border-b border-purple-900/30 flex justify-between items-center z-10">
+            <span className="font-bold text-purple-400 tracking-wide text-sm flex items-center"><span className="text-xl mr-2">🖥️</span> Receiver Node (C-Code)</span>
           </div>
 
-          <div ref={receiverContainerRef} className="flex-1 overflow-y-auto p-4 font-mono text-[13px] bg-[#1e1e1e] leading-relaxed">
-             {loading ? <p className="text-gray-500">Loading code...</p> : (
-               rLines.map((line, i) => (
-                 <div 
-                   key={`r-${i}`} 
-                   onClick={() => { setRIdx(i); setIsPlaying(false); }}
-                   className={`cursor-pointer px-2 py-0.5 whitespace-pre rounded ${i === rIdx ? 'bg-purple-600/40 border border-purple-500/50 active-r' : 'hover:bg-gray-800 text-gray-300'}`}
+          <div ref={receiverContainerRef} className="flex-1 overflow-y-auto p-4 font-mono text-[13px] leading-relaxed relative">
+             {rLines.map((line, i) => {
+               const isAct = i === rIdx;
+               return (
+                 <div key={`r-${i}`} onClick={() => { setRIdx(i); setIsPlaying(false); }}
+                   className={`cursor-pointer px-2 py-0.5 whitespace-pre rounded transition-colors ${isAct ? 'bg-purple-600/30 border-l-2 border-purple-500 text-white active-r' : 'hover:bg-gray-800 text-gray-400'}`}
                  >
-                   <span className="text-gray-500 mr-3 inline-block w-8 text-right opacity-50 select-none">{i+1}</span>
+                   <span className="text-gray-600 mr-4 inline-block w-6 text-right select-none">{i+1}</span>
                    {line}
                  </div>
-               ))
-             )}
+               )
+             })}
           </div>
+
+          {/* Virtual Receiver Buffer window  */}
+          {version > 1 && (
+            <div className="h-20 bg-gray-900 border-t border-gray-800 p-2 flex flex-col justify-center">
+               <span className="text-[10px] text-gray-500 font-mono tracking-widest mb-1">RECEIVER BUFFER / CART (Expected: {rWindow.base})</span>
+               <div className="flex gap-1 overflow-hidden">
+                  {Array.from({length: 12}).map((_, i) => (
+                     <div key={i} className={`h-6 w-8 rounded text-[10px] flex items-center justify-center font-bold font-mono transition-all duration-300
+                       ${i < rWindow.base ? 'bg-purple-900/60 text-purple-400 border border-purple-800' : 'bg-gray-800 text-gray-600 border border-gray-700'}
+                     `}>
+                       {i}
+                     </div>
+                  ))}
+               </div>
+            </div>
+          )}
         </div>
 
       </div>
