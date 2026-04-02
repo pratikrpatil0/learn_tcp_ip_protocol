@@ -9,6 +9,8 @@ const navItems = [
   { number: "", name: "Project Overview", path: "/" },
   { number: "1", name: "Introduction", path: "/intro" },
   { number: "2", name: "Interactive Visualizer", path: "/simulator" },
+  { number: "3", name: "Presentation", path: "/presentation" },
+  { number: "4", name: "5 Files Demo", path: "/demonstration" },
 ];
 
 export default function Navigation() {
