@@ -1,14 +1,15 @@
-#include <arpa/inet.h>
+#include <arpa/inet.h> // network operations
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/time.h>
-#include <unistd.h>
+#include <stdio.h> // for i/o operations
+#include <string.h> // for string handling
+#include <sys/time.h>  // include time structures like timeval for setting timeouts
+#include <unistd.h> // for system calls
+#define PORT 9090 // this is where the receiver will listen the message
+ // this is where the receiver will listen the message
 
-#define PORT 9090
 #define MAX_MSG_LEN 1024
 #define WINDOW_SIZE 8
 #define CHUNK_SIZE 8
@@ -82,12 +83,12 @@ static int checksum_valid(const Packet *pkt) {
     return received == compute_checksum(&tmp);
 }
 
-static int is_from_peer(const struct sockaddr_in *expected, const struct sockaddr_in *from) {
+static int is_from_peer(const struct sockaddr_in *expected, const struct sockaddr_in *from) {  // define a structure to hold the IP address and port number for the network connection
     return expected->sin_port == from->sin_port && expected->sin_addr.s_addr == from->sin_addr.s_addr;
 }
 
 static long long now_ms(void) {
-    struct timeval tv;
+    struct timeval tv;  // define a structure to properly hold a time duration, used here for setting a timeout period
     gettimeofday(&tv, NULL);
     return (long long)tv.tv_sec * 1000LL + (long long)tv.tv_usec / 1000LL;
 }
@@ -102,12 +103,12 @@ static double clamp_double(double v, double min_v, double max_v) {
     return v;
 }
 
-static int wait_for_response(int sockfd, const struct sockaddr_in *receiver_addr, Packet *resp) {
-    struct sockaddr_in from_addr;
-    socklen_t from_len = sizeof(from_addr);
+static int wait_for_response(int sockfd, const struct sockaddr_in *receiver_addr, Packet *resp) {  // define a variable to hold our socket file descriptor, which acts as an ID for our network connection
+    struct sockaddr_in from_addr;  // define a structure to hold the IP address and port number for the network connection
+    socklen_t from_len = sizeof(from_addr);  // define a variable to store the size of the address structure, needed by OS network functions
 
-    while (1) {
-        ssize_t r = recvfrom(sockfd, resp, sizeof(*resp), 0, (struct sockaddr *)&from_addr, &from_len);
+    while (1) {  // start an infinite loop to keep running this process continuously
+        ssize_t r = recvfrom(sockfd, resp, sizeof(*resp), 0, (struct sockaddr *)&from_addr, &from_len);  // wait and listen patiently to receive an incoming packet from the network
         if (r < 0) {
             return -1;
         }
@@ -120,16 +121,16 @@ static int wait_for_response(int sockfd, const struct sockaddr_in *receiver_addr
         if (!checksum_valid(resp)) {
             continue;
         }
-        return 0;
+        return 0;  // end the program execution successfully
     }
 }
 
-static int connect_handshake(int sockfd, const struct sockaddr_in *receiver_addr, SenderState *state,
+static int connect_handshake(int sockfd, const struct sockaddr_in *receiver_addr, SenderState *state,  // define a variable to hold our socket file descriptor, which acts as an ID for our network connection
                              uint8_t *negotiated_mss) {
     Packet syn;
     Packet resp;
 
-    memset(&syn, 0, sizeof(syn));
+    memset(&syn, 0, sizeof(syn));  // completely clear the memory of the address structure to prevent any leftover garbage data
     syn.seq = 0;
     syn.flags = FLAG_SYN;
     syn.opt_mss = CHUNK_SIZE;
@@ -138,20 +139,20 @@ static int connect_handshake(int sockfd, const struct sockaddr_in *receiver_addr
 
     for (int retry = 0; retry <= 5; retry++) {
         if (retry > 0) {
-            printf("[RETRY %d] Resending SYN\n", retry);
+            printf("[RETRY %d] Resending SYN\n", retry);  // print a human-readable log message to the console screen so we can see what is happening
         }
 
-        if (sendto(sockfd, &syn, sizeof(syn), 0, (const struct sockaddr *)receiver_addr, sizeof(*receiver_addr)) !=
+        if (sendto(sockfd, &syn, sizeof(syn), 0, (const struct sockaddr *)receiver_addr, sizeof(*receiver_addr)) !=  // dispatch and send the data packet over the network to the assigned receiver address
             (ssize_t)sizeof(syn)) {
             perror("sendto SYN");
             continue;
         }
 
-        printf("Sent SYN\n");
+        printf("Sent SYN\n");  // print a human-readable log message to the console screen so we can see what is happening
 
         if (wait_for_response(sockfd, receiver_addr, &resp) != 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                printf("Timeout waiting for SYN-ACK\n");
+                printf("Timeout waiting for SYN-ACK\n");  // print a human-readable log message to the console screen so we can see what is happening
             } else {
                 perror("recvfrom SYN-ACK");
             }
@@ -166,25 +167,25 @@ static int connect_handshake(int sockfd, const struct sockaddr_in *receiver_addr
             *negotiated_mss = peer_mss;
 
             Packet final_ack;
-            memset(&final_ack, 0, sizeof(final_ack));
+            memset(&final_ack, 0, sizeof(final_ack));  // completely clear the memory of the address structure to prevent any leftover garbage data
             final_ack.seq = 1;
             final_ack.ack_num = 1;
             final_ack.flags = FLAG_ACK;
             final_ack.opt_mss = *negotiated_mss;
             finalize_packet(&final_ack);
 
-            if (sendto(sockfd, &final_ack, sizeof(final_ack), 0, (const struct sockaddr *)receiver_addr,
+            if (sendto(sockfd, &final_ack, sizeof(final_ack), 0, (const struct sockaddr *)receiver_addr,  // dispatch and send the data packet over the network to the assigned receiver address
                        sizeof(*receiver_addr)) != (ssize_t)sizeof(final_ack)) {
                 perror("sendto final ACK");
                 continue;
             }
 
-            printf("Received SYN-ACK (MSS=%u), sent final ACK. Connection established.\n\n", *negotiated_mss);
+            printf("Received SYN-ACK (MSS=%u), sent final ACK. Connection established.\n\n", *negotiated_mss);  // print a human-readable log message to the console screen so we can see what is happening
             *state = S_ESTABLISHED;
-            return 0;
+            return 0;  // end the program execution successfully
         }
 
-        printf("Unexpected handshake packet (flags=0x%02X ack=%u).\n", resp.flags, resp.ack_num);
+        printf("Unexpected handshake packet (flags=0x%02X ack=%u).\n", resp.flags, resp.ack_num);  // print a human-readable log message to the console screen so we can see what is happening
     }
 
     return -1;
@@ -198,7 +199,7 @@ static int prepare_packets(Packet packets[MAX_PACKETS], const char *message, int
         int remaining = len - offset;
         int chunk_len = (remaining > mss) ? mss : remaining;
 
-        memset(&packets[i], 0, sizeof(Packet));
+        memset(&packets[i], 0, sizeof(Packet));  // completely clear the memory of the address structure to prevent any leftover garbage data
         packets[i].seq = (uint32_t)(1 + offset);
         packets[i].flags = FLAG_DATA;
         packets[i].len = (uint8_t)chunk_len;
@@ -224,14 +225,14 @@ static void on_congestion_event(double *cwnd, double *ssthresh) {
     *cwnd = INIT_CWND;
 }
 
-static int retransmit_packet(int sockfd, const struct sockaddr_in *receiver_addr, Packet *pkt) {
-    return sendto(sockfd, pkt, sizeof(*pkt), 0, (const struct sockaddr *)receiver_addr, sizeof(*receiver_addr)) ==
+static int retransmit_packet(int sockfd, const struct sockaddr_in *receiver_addr, Packet *pkt) {  // define a variable to hold our socket file descriptor, which acts as an ID for our network connection
+    return sendto(sockfd, pkt, sizeof(*pkt), 0, (const struct sockaddr *)receiver_addr, sizeof(*receiver_addr)) ==  // dispatch and send the data packet over the network to the assigned receiver address
                    (ssize_t)sizeof(*pkt)
                ? 0
                : -1;
 }
 
-static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiver_addr, const char *message, int len,
+static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiver_addr, const char *message, int len,  // define a variable to hold our socket file descriptor, which acts as an ID for our network connection
                                     uint8_t mss) {
     Packet packets[MAX_PACKETS];
     int total_packets = prepare_packets(packets, message, len, mss);
@@ -292,12 +293,12 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
                 last_probe_ms = now;
                 sample_ok[base] = 0;
                 sent_at_ms[base] = now;
-                printf("Zero-window persist probe sent for seq=%" PRIu32 "\n", packets[base].seq);
+                printf("Zero-window persist probe sent for seq=%" PRIu32 "\n", packets[base].seq);  // print a human-readable log message to the console screen so we can see what is happening
             }
         }
 
         while (next_to_send < total_packets && (bytes_in_flight + packets[next_to_send].len) <= allowed_bytes) {
-            if (sendto(sockfd, &packets[next_to_send], sizeof(Packet), 0, (const struct sockaddr *)receiver_addr,
+            if (sendto(sockfd, &packets[next_to_send], sizeof(Packet), 0, (const struct sockaddr *)receiver_addr,  // dispatch and send the data packet over the network to the assigned receiver address
                        sizeof(*receiver_addr)) != (ssize_t)sizeof(Packet)) {
                 perror("sendto DATA");
                 return -1;
@@ -306,7 +307,7 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
             sent[next_to_send] = 1;
             sample_ok[next_to_send] = 1;
             sent_at_ms[next_to_send] = now_ms();
-            printf("Sent DATA pkt=%d seq=%" PRIu32 " len=%u (cwnd=%.2f ssthresh=%.2f RTO=%.0fms)\n", next_to_send + 1,
+            printf("Sent DATA pkt=%d seq=%" PRIu32 " len=%u (cwnd=%.2f ssthresh=%.2f RTO=%.0fms)\n", next_to_send + 1,  // print a human-readable log message to the console screen so we can see what is happening
                      packets[next_to_send].seq, packets[next_to_send].len, cwnd, ssthresh, rto_ms);
             bytes_in_flight += packets[next_to_send].len;
             next_to_send++;
@@ -328,11 +329,11 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
                     }
 
                     if (retries[i] >= MAX_TIMEOUT_RETRIES) {
-                        printf("Too many retries for seq=%" PRIu32 ", transfer failed.\n", packets[i].seq);
+                        printf("Too many retries for seq=%" PRIu32 ", transfer failed.\n", packets[i].seq);  // print a human-readable log message to the console screen so we can see what is happening
                         return -1;
                     }
 
-                    if (sendto(sockfd, &packets[i], sizeof(Packet), 0, (const struct sockaddr *)receiver_addr,
+                    if (sendto(sockfd, &packets[i], sizeof(Packet), 0, (const struct sockaddr *)receiver_addr,  // dispatch and send the data packet over the network to the assigned receiver address
                                sizeof(*receiver_addr)) != (ssize_t)sizeof(Packet)) {
                         perror("sendto retransmit");
                         return -1;
@@ -346,12 +347,12 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
                     on_congestion_event(&cwnd, &ssthresh);
                                         in_fast_recovery = 0;
                                         recover_idx = -1;
-                                        printf("Timeout loss: retransmit pkt=%d seq=%" PRIu32 " (retry=%d). cwnd=%.2f ssthresh=%.2f\n", i + 1,
+                                        printf("Timeout loss: retransmit pkt=%d seq=%" PRIu32 " (retry=%d). cwnd=%.2f ssthresh=%.2f\n", i + 1,  // print a human-readable log message to the console screen so we can see what is happening
                            packets[i].seq, retries[i], cwnd, ssthresh);
                 }
 
                 if (retransmitted == 0) {
-                    printf("Timeout tick: no packet exceeded adaptive RTO yet (RTO=%.0fms).\n", rto_ms);
+                    printf("Timeout tick: no packet exceeded adaptive RTO yet (RTO=%.0fms).\n", rto_ms);  // print a human-readable log message to the console screen so we can see what is happening
                 }
                 continue;
             }
@@ -372,11 +373,11 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
             peer_rwnd = WINDOW_SIZE * mss;
         }
         if (peer_rwnd == 0) {
-            printf("Receiver advertised rwnd=0, entering persist mode\n");
+            printf("Receiver advertised rwnd=0, entering persist mode\n");  // print a human-readable log message to the console screen so we can see what is happening
         }
 
         if (ack_pkt.ack_num < 1 || ack_pkt.ack_num > (uint32_t)(len + 1)) {
-            printf("Ignoring invalid ACK=%" PRIu32 "\n", ack_pkt.ack_num);
+            printf("Ignoring invalid ACK=%" PRIu32 "\n", ack_pkt.ack_num);  // print a human-readable log message to the console screen so we can see what is happening
             continue;
         }
 
@@ -385,13 +386,13 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
             highest_sent_next_byte = packets[next_to_send - 1].seq + packets[next_to_send - 1].len;
         }
         if (ack_pkt.ack_num > highest_sent_next_byte) {
-            printf("Ignoring future cumulative ACK=%" PRIu32 " (highest_sent_next_byte=%" PRIu32 ")\n", ack_pkt.ack_num,
+            printf("Ignoring future cumulative ACK=%" PRIu32 " (highest_sent_next_byte=%" PRIu32 ")\n", ack_pkt.ack_num,  // print a human-readable log message to the console screen so we can see what is happening
                    highest_sent_next_byte);
             continue;
         }
 
         if ((int)ack_pkt.ack_num < last_cum_ack) {
-            printf("Ignoring stale cumulative ACK=%" PRIu32 " (last=%d)\n", ack_pkt.ack_num, last_cum_ack);
+            printf("Ignoring stale cumulative ACK=%" PRIu32 " (last=%d)\n", ack_pkt.ack_num, last_cum_ack);  // print a human-readable log message to the console screen so we can see what is happening
             continue;
         }
 
@@ -414,7 +415,7 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
                 base++;
             }
 
-                 printf("Received byte cumulative ACK=%" PRIu32 " (packet-base %d -> %d)\n", ack_pkt.ack_num, old_base + 1,
+                 printf("Received byte cumulative ACK=%" PRIu32 " (packet-base %d -> %d)\n", ack_pkt.ack_num, old_base + 1,  // print a human-readable log message to the console screen so we can see what is happening
                    base + 1);
 
             if (sample_idx >= 0) {
@@ -434,17 +435,17 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
                 }
 
                 rto_ms = clamp_double(srtt_ms + 4.0 * rttvar_ms, MIN_RTO_MS, MAX_RTO_MS);
-                printf("RTT sample=%.0fms SRTT=%.1fms RTTVAR=%.1fms new RTO=%.0fms\n", sample_ms, srtt_ms,
+                printf("RTT sample=%.0fms SRTT=%.1fms RTTVAR=%.1fms new RTO=%.0fms\n", sample_ms, srtt_ms,  // print a human-readable log message to the console screen so we can see what is happening
                        rttvar_ms, rto_ms);
             }
 
             if (in_fast_recovery && base > recover_idx) {
                 in_fast_recovery = 0;
                 cwnd = clamp_double(ssthresh, 1.0, MAX_CWND);
-                printf("Fast recovery exit on new ACK: cwnd=%.2f ssthresh=%.2f\n", cwnd, ssthresh);
+                printf("Fast recovery exit on new ACK: cwnd=%.2f ssthresh=%.2f\n", cwnd, ssthresh);  // print a human-readable log message to the console screen so we can see what is happening
             } else {
                 on_new_ack(&cwnd, ssthresh);
-                printf("Congestion update after ACK: cwnd=%.2f ssthresh=%.2f\n", cwnd, ssthresh);
+                printf("Congestion update after ACK: cwnd=%.2f ssthresh=%.2f\n", cwnd, ssthresh);  // print a human-readable log message to the console screen so we can see what is happening
             }
 
             last_probe_ms = 0;
@@ -461,7 +462,7 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
             dup_ack_repeats = 0;
         }
 
-        printf("Duplicate cumulative ACK=%" PRIu32 " (dup=%d)\n", ack_pkt.ack_num, dup_ack_repeats);
+        printf("Duplicate cumulative ACK=%" PRIu32 " (dup=%d)\n", ack_pkt.ack_num, dup_ack_repeats);  // print a human-readable log message to the console screen so we can see what is happening
 
         if (dup_ack_repeats == 3) {
             int target_idx = -1;
@@ -483,7 +484,7 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
 
             if (target_idx >= 0 && target_idx < total_packets && target_idx < next_to_send && !acked[target_idx]) {
                 if (retries[target_idx] >= MAX_TIMEOUT_RETRIES) {
-                    printf("Too many retries for seq=%" PRIu32 ", transfer failed.\n", packets[target_idx].seq);
+                    printf("Too many retries for seq=%" PRIu32 ", transfer failed.\n", packets[target_idx].seq);  // print a human-readable log message to the console screen so we can see what is happening
                     return -1;
                 }
 
@@ -501,23 +502,23 @@ static int send_with_cc_sr_adaptive(int sockfd, const struct sockaddr_in *receiv
                 in_fast_recovery = 1;
                 recover_idx = next_to_send - 1;
 
-                  printf("Fast retransmit missing seq=%" PRIu32 ", enter fast recovery (cwnd=%.2f ssthresh=%.2f)\n",
+                  printf("Fast retransmit missing seq=%" PRIu32 ", enter fast recovery (cwnd=%.2f ssthresh=%.2f)\n",  // print a human-readable log message to the console screen so we can see what is happening
                        packets[target_idx].seq, cwnd, ssthresh);
             }
         } else if (in_fast_recovery) {
             cwnd = clamp_double(cwnd + 1.0, 1.0, MAX_CWND);
-            printf("Fast recovery dup ACK inflation: cwnd=%.2f\n", cwnd);
+            printf("Fast recovery dup ACK inflation: cwnd=%.2f\n", cwnd);  // print a human-readable log message to the console screen so we can see what is happening
         }
     }
 
     return total_packets;
 }
 
-static int close_with_fin(int sockfd, const struct sockaddr_in *receiver_addr, uint32_t fin_seq, SenderState *state) {
+static int close_with_fin(int sockfd, const struct sockaddr_in *receiver_addr, uint32_t fin_seq, SenderState *state) {  // define a variable to hold our socket file descriptor, which acts as an ID for our network connection
     Packet fin_pkt;
     Packet resp;
 
-    memset(&fin_pkt, 0, sizeof(fin_pkt));
+    memset(&fin_pkt, 0, sizeof(fin_pkt));  // completely clear the memory of the address structure to prevent any leftover garbage data
     fin_pkt.seq = fin_seq;
     fin_pkt.flags = FLAG_FIN;
     finalize_packet(&fin_pkt);
@@ -525,20 +526,20 @@ static int close_with_fin(int sockfd, const struct sockaddr_in *receiver_addr, u
 
     for (int retry = 0; retry <= 5; retry++) {
         if (retry > 0) {
-            printf("[RETRY %d] Resending FIN\n", retry);
+            printf("[RETRY %d] Resending FIN\n", retry);  // print a human-readable log message to the console screen so we can see what is happening
         }
 
-        if (sendto(sockfd, &fin_pkt, sizeof(fin_pkt), 0, (const struct sockaddr *)receiver_addr,
+        if (sendto(sockfd, &fin_pkt, sizeof(fin_pkt), 0, (const struct sockaddr *)receiver_addr,  // dispatch and send the data packet over the network to the assigned receiver address
                    sizeof(*receiver_addr)) != (ssize_t)sizeof(fin_pkt)) {
             perror("sendto FIN");
             continue;
         }
 
-        printf("Sent FIN seq=%" PRIu32 "\n", fin_seq);
+        printf("Sent FIN seq=%" PRIu32 "\n", fin_seq);  // print a human-readable log message to the console screen so we can see what is happening
 
         if (wait_for_response(sockfd, receiver_addr, &resp) != 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                printf("Timeout waiting for FIN-ACK\n");
+                printf("Timeout waiting for FIN-ACK\n");  // print a human-readable log message to the console screen so we can see what is happening
             } else {
                 perror("recvfrom FIN-ACK");
             }
@@ -547,11 +548,11 @@ static int close_with_fin(int sockfd, const struct sockaddr_in *receiver_addr, u
 
         if ((resp.flags & FLAG_ACK) && resp.ack_num == (uint32_t)(fin_seq + 1)) {
             *state = S_FIN_WAIT_2;
-            printf("Received FIN-ACK. Entering TIME_WAIT.\n");
+            printf("Received FIN-ACK. Entering TIME_WAIT.\n");  // print a human-readable log message to the console screen so we can see what is happening
             break;
         }
 
-        printf("Unexpected close packet (flags=0x%02X ack=%" PRIu32 ")\n", resp.flags, resp.ack_num);
+        printf("Unexpected close packet (flags=0x%02X ack=%" PRIu32 ")\n", resp.flags, resp.ack_num);  // print a human-readable log message to the console screen so we can see what is happening
     }
 
     if (*state != S_FIN_WAIT_2) {
@@ -571,84 +572,84 @@ static int close_with_fin(int sockfd, const struct sockaddr_in *receiver_addr, u
 
         if (resp.flags & FLAG_FIN) {
             Packet ack;
-            memset(&ack, 0, sizeof(ack));
+            memset(&ack, 0, sizeof(ack));  // completely clear the memory of the address structure to prevent any leftover garbage data
             ack.flags = FLAG_ACK;
             ack.ack_num = resp.seq + 1;
             finalize_packet(&ack);
-            (void)sendto(sockfd, &ack, sizeof(ack), 0, (const struct sockaddr *)receiver_addr, sizeof(*receiver_addr));
-            printf("TIME_WAIT: ACKed delayed FIN seq=%" PRIu32 "\n", resp.seq);
+            (void)sendto(sockfd, &ack, sizeof(ack), 0, (const struct sockaddr *)receiver_addr, sizeof(*receiver_addr));  // dispatch and send the data packet over the network to the assigned receiver address
+            printf("TIME_WAIT: ACKed delayed FIN seq=%" PRIu32 "\n", resp.seq);  // print a human-readable log message to the console screen so we can see what is happening
         }
     }
 
     *state = S_CLOSED;
-    printf("TIME_WAIT complete. Connection closed cleanly.\n");
+    printf("TIME_WAIT complete. Connection closed cleanly.\n");  // print a human-readable log message to the console screen so we can see what is happening
 
-    return 0;
+    return 0;  // end the program execution successfully
 }
 
-int main(void) {
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd < 0) {
+int main(void) {  // the main entry point of the program where execution begins
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0); // Create socket: IPv4 + datagram-style + default protocol (UDP) // Create socket: IPv4 + datagram-style + default protocol (UDP)
+    if (sockfd < 0) {  // check if the socket creation failed
         perror("socket");
         return 1;
     }
 
-    struct timeval timeout;
+    struct timeval timeout;  // define a structure to properly hold a time duration, used here for setting a timeout period
     timeout.tv_sec = 0;
     timeout.tv_usec = 120000;
-    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {  // dynamically change the socket internal options, such as enabling a receive timeout so it doesn\'t block forever
         perror("setsockopt");
-        close(sockfd);
+        close(sockfd);  // permanently close the socket connection to free up the computer\'s resources
         return 1;
     }
 
-    struct sockaddr_in receiver_addr;
-    memset(&receiver_addr, 0, sizeof(receiver_addr));
-    receiver_addr.sin_family = AF_INET;
-    receiver_addr.sin_port = htons(PORT);
-    receiver_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    struct sockaddr_in receiver_addr; // structure to hold receiver\'s address information // structure to hold receiver\'s address information
+    memset(&receiver_addr, 0, sizeof(receiver_addr));  // completely clear the memory of the address structure to prevent any leftover garbage data
+    receiver_addr.sin_family = AF_INET;  // specifically state that we are using IPv4 addresses
+    receiver_addr.sin_port = htons(PORT);  // set the port number and convert it to big-endian network byte order using htons() so the network understands it
+    receiver_addr.sin_addr.s_addr = inet_addr("127.0.0.1");  // convert the human-readable string IP address (like "127.0.0.1") into the raw numerical format needed by the network
 
     SenderState state = S_CLOSED;
     uint8_t negotiated_mss = CHUNK_SIZE;
 
     if (connect_handshake(sockfd, &receiver_addr, &state, &negotiated_mss) != 0) {
-        printf("Failed to establish connection.\n");
-        close(sockfd);
+        printf("Failed to establish connection.\n");  // print a human-readable log message to the console screen so we can see what is happening
+        close(sockfd);  // permanently close the socket connection to free up the computer\'s resources
         return 1;
     }
 
     if (state != S_ESTABLISHED) {
-        printf("Invalid sender state after handshake: %d\n", (int)state);
-        close(sockfd);
+        printf("Invalid sender state after handshake: %d\n", (int)state);  // print a human-readable log message to the console screen so we can see what is happening
+        close(sockfd);  // permanently close the socket connection to free up the computer\'s resources
         return 1;
     }
 
     char message[MAX_MSG_LEN + 1];
-    printf("Enter message (max %d chars): ", MAX_MSG_LEN);
+    printf("Enter message (max %d chars): ", MAX_MSG_LEN);  // print a human-readable log message to the console screen so we can see what is happening
     if (fgets(message, sizeof(message), stdin) == NULL) {
-        fprintf(stderr, "Failed to read input\n");
-        close(sockfd);
+        fprintf(stderr, "Failed to read input\n");  // print a human-readable log message to the console screen so we can see what is happening
+        close(sockfd);  // permanently close the socket connection to free up the computer\'s resources
         return 1;
     }
 
     message[strcspn(message, "\n")] = '\0';
     int len = (int)strlen(message);
 
-        printf("Sending v21 mss-negotiation+32bit-seq-ack+state-machine+byte-stream+flow-control+persist+adaptive-RTO+cc (window=%d mss=%u): \"%s\" (%d chars)\n\n",
+        printf("Sending v21 mss-negotiation+32bit-seq-ack+state-machine+byte-stream+flow-control+persist+adaptive-RTO+cc (window=%d mss=%u): \"%s\" (%d chars)\n\n",  // print a human-readable log message to the console screen so we can see what is happening
             WINDOW_SIZE, negotiated_mss, message, len);
 
         int total_packets = send_with_cc_sr_adaptive(sockfd, &receiver_addr, message, len, negotiated_mss);
     if (total_packets < 0) {
-        close(sockfd);
+        close(sockfd);  // permanently close the socket connection to free up the computer\'s resources
         return 1;
     }
 
     if (close_with_fin(sockfd, &receiver_addr, (uint8_t)(len + 1), &state) != 0) {
-        printf("Failed to close connection cleanly.\n");
-        close(sockfd);
+        printf("Failed to close connection cleanly.\n");  // print a human-readable log message to the console screen so we can see what is happening
+        close(sockfd);  // permanently close the socket connection to free up the computer\'s resources
         return 1;
     }
 
-    close(sockfd);
-    return 0;
+    close(sockfd);  // permanently close the socket connection to free up the computer\'s resources
+    return 0;  // end the program execution successfully
 }
