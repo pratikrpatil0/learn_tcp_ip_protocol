@@ -1,0 +1,52 @@
+\chapter{Abstract}
+\begin{tabular}{@{} >{\bfseries}p{0.2\textwidth} p{0.77\textwidth} @{}}
+\MakeUppercase{Keywords} &
+TCP/IP; UDP sockets; reliability; checksum; sliding window; selective repeat;
+adaptive timeout; congestion control; fast retransmit; fast recovery\\
+\end{tabular}
+\par
+
+\begin{doublespacing}
+This report presents the design and staged implementation of a TCP/IP-inspired
+communication stack built over UDP sockets in C. The project contains twenty-
+five sender-receiver pairs (from level 0 to level 24) and demonstrates a clear
+evolution from basic bit transfer to advanced transport behavior similar to
+real TCP principles. Early levels focus on message encoding and reconstruction.
+Middle levels add parity checking, acknowledgements, timeout-based retries, and
+stop-and-wait reliability. Later levels introduce connection setup and teardown,
+packet checksum, sequence and acknowledgement numbers, pipelining, sliding
+windows, chunk-based payload transfer, out-of-order buffering, and adaptive
+retransmission timeout (RTO) estimation.
+
+The full project context also includes the expanded web visualizer that covers
+versions 0 to 24. In that interface, the code, finite state machine, and UML
+timeline are shown together so that the protocol progression can be studied as
+an educational sequence instead of as isolated source files.
+
+An important objective of this project is learning networking from scratch
+through a textbook-first approach. The conceptual foundation follows standard
+sources such as the top-down networking method of Kurose and Ross and the
+implementation perspective of Stevens. AI tools were used only in a responsible
+support role for idea exploration, clarification, and debugging direction. The
+final implementation logic, coding, and validation were performed manually,
+without copying generated code.
+
+The final levels implement congestion control ideas such as slow start,
+congestion avoidance, and, in the most advanced version, fast retransmit and
+fast recovery based on duplicate acknowledgements. Even though this project is
+an educational simplification of TCP and uses UDP as the underlying transport,
+it captures many practical protocol engineering concepts: correctness,
+efficiency, robustness to packet loss and reordering, and maintainable protocol
+state management.
+
+The educational value is especially important. The combination of versioned C
+code, textbook references, and a synchronized visualizer makes TCP-like
+behavior easier to understand for novice students who often find transport
+protocols and congestion control difficult at first glance.
+
+The report explains the architecture, algorithms, implementation decisions,
+version-by-version progression, and limitations. It also provides diagrams,
+comparison tables, and formula-based analysis for throughput and timeout logic.
+The outcome is a complete learning artifact that bridges networking theory with
+hands-on systems programming.
+\end{doublespacing}

@@ -1,0 +1,193 @@
+\chapter{Algorithmic and Quantitative Analysis}
+
+This chapter formalizes the major algorithms used in the project and explains
+their practical effect. The purpose is not only to present formulas, but also
+to connect each formula to implementation decisions in sender and receiver
+modules.
+
+\section{Bit Encoding and Message Cost}
+In early versions, each character is split into 8 bits and transmitted as
+separate UDP datagrams. If a message has length $L$ characters, then the number
+of payload datagrams in pure bit mode is
+\begin{equation}
+N_{\text{bit}} = 8L + 8,
+\end{equation}
+where the additional $8$ corresponds to transmitting the null terminator as one
+more byte.
+
+This immediately explains why bit mode is inefficient. Datagram count grows
+linearly with a large constant factor.
+
+\section{Parity-Based Error Detection}
+For versions with parity, sender computes parity of one byte:
+\begin{equation}
+p = b_0 \oplus b_1 \oplus \cdots \oplus b_7,
+\end{equation}
+where $b_i$ is the $i$th bit of the character and $\oplus$ denotes XOR.
+
+Receiver computes parity again and compares. If mismatch is found, the packet
+is marked corrupted. Parity detects all odd-bit errors but cannot detect every
+even-bit error pattern. This is why later versions move to checksum.
+
+\section{Stop-and-Wait Service Time}
+In stop-and-wait, sender transmits one unit and waits for ACK before next send.
+Approximate per-packet cycle time is
+\begin{equation}
+T_{\text{cycle}} = T_{\text{tx}} + T_{\text{prop}} + T_{\text{proc}} + T_{\text{ack}}.
+\end{equation}
+
+Ideal throughput under stop-and-wait is therefore bounded by
+\begin{equation}
+\text{Throughput}_{\text{SAW}} \approx \frac{\text{payload per packet}}{T_{\text{cycle}}}.
+\end{equation}
+
+Even if channel capacity is high, waiting for each ACK keeps effective
+throughput low when round-trip delay is non-trivial.
+
+\section{Checksum in TCP-like Versions}
+In advanced versions, a one's complement style checksum is computed over key
+header fields and payload bytes. Conceptually:
+\begin{align}
+S &= \sum \text{(header fields + payload bytes)}, \\
+S' &= (S \bmod 2^{16}) + \left\lfloor\frac{S}{2^{16}}\right\rfloor, \\
+\text{checksum} &= \sim S'.
+\end{align}
+
+At the receiver, checksum field is reset, recomputed, and compared. This gives
+stronger detection than parity and supports multi-byte payload packets.
+
+\section{Sliding Window Efficiency}
+With sender window size $W$, up to $W$ packets can be in flight. In an ideal
+pipeline, normalized channel utilization can be approximated as
+\begin{equation}
+U \approx \min\left(1, \frac{W}{1 + 2a}\right),
+\end{equation}
+where $a = T_{\text{prop}}/T_{\text{tx}}$.
+
+This relation explains why larger windows increase throughput until the path is
+fully utilized.
+
+\section{Chunking Gain}
+If payload per packet increases from 1 byte to $C$ bytes (for example,
+$C=8$), the number of data packets for message length $L$ becomes
+\begin{equation}
+N_{\text{chunk}} = \left\lceil\frac{L}{C}\right\rceil.
+\end{equation}
+
+Relative packet count reduction compared to one-byte payload is approximately
+\begin{equation}
+\text{Gain factor} \approx C,
+\end{equation}
+ignoring control packets and retransmissions.
+
+\clearpage
+\section{Adaptive RTO Estimation}
+Versions 12 and above use smoothed RTT estimation and variation-based timeout.
+Given sample RTT $R$, smoothed RTT ($SRTT$) and RTT variation ($RTTVAR$) are
+updated as follows:
+\begin{align}
+RTTVAR &\leftarrow (1-\beta)\,RTTVAR + \beta\,|SRTT - R|, \\
+SRTT   &\leftarrow (1-\alpha)\,SRTT + \alpha\,R.
+\end{align}
+
+Then retransmission timeout is estimated by
+\begin{equation}
+RTO = SRTT + K \cdot RTTVAR,
+\end{equation}
+and bounded in implementation between predefined minimum and maximum values.
+
+This model is aligned with practical transport engineering guidance and avoids
+both aggressive and overly delayed retransmissions.
+
+\section{Congestion Window Dynamics}
+In congestion-controlled versions, sender maintains congestion window $cwnd$ and
+slow-start threshold $ssthresh$.
+
+\subsection{Slow Start}
+When $cwnd < ssthresh$, growth is fast (approximately one MSS-equivalent unit
+per ACK, resulting in near exponential growth per RTT in simplified models).
+
+\subsection{Congestion Avoidance}
+When $cwnd \ge ssthresh$, growth becomes gradual, approximating additive
+increase.
+
+\subsection{Loss Response}
+On timeout event:
+\begin{align}
+ssthresh &\leftarrow \max\left(2, \frac{cwnd}{2}\right), \\
+cwnd &\leftarrow 1.
+\end{align}
+
+On triple duplicate ACK in fast retransmit logic:
+\begin{align}
+ssthresh &\leftarrow \max\left(2, \frac{cwnd}{2}\right), \\
+cwnd &\leftarrow ssthresh + 3.
+\end{align}
+
+After successful recovery, window is deflated near threshold level. This avoids
+fully restarting from 1 in many recoverable loss cases.
+
+\section{Latency Components}
+Observed transfer completion time includes multiple components:
+\begin{equation}
+T_{\text{total}} = T_{\text{setup}} + T_{\text{data}} + T_{\text{retrans}} + T_{\text{teardown}}.
+\end{equation}
+
+Where:
+\begin{enumerate}
+    \item $T_{\text{setup}}$ includes handshake steps,
+    \item $T_{\text{data}}$ includes normal in-order transfer,
+    \item $T_{\text{retrans}}$ includes recovery delay from loss/corruption,
+    \item $T_{\text{teardown}}$ includes connection close signaling.
+\end{enumerate}
+
+This decomposition helps explain why different versions show different
+completion times for the same message length.
+
+\section{Reliability Metrics}
+Useful metrics for experiment reporting are defined below.
+
+\begin{align}
+\text{Delivery Success Rate} &= \frac{\text{Successfully delivered messages}}{\text{Messages attempted}}, \\
+\text{Retransmission Ratio} &= \frac{\text{Retransmitted packets}}{\text{Original packets}}, \\
+\text{Goodput} &= \frac{\text{Useful payload bits delivered}}{T_{\text{total}}}.
+\end{align}
+
+These metrics give a balanced view across correctness and efficiency.
+
+\section{A Practical Theorem-like Observation}
+\begin{theorem}
+For a fixed message length and fixed packet loss conditions, increasing sender
+window size improves throughput up to a saturation point, after which timeout,
+loss recovery, and receiver buffering limits dominate.
+\end{theorem}
+
+\begin{Proof}
+With small window size, sender frequently waits for acknowledgements and cannot
+fully utilize available channel time. Increasing the window allows more
+in-flight packets and reduces idle duration. However, once in-flight capacity
+matches path-delay product and receiver processing limits, further increase does
+not improve delivered payload rate. In lossy conditions, larger windows may also
+increase retransmission pressure if recovery logic is not selective. Therefore,
+throughput gains plateau after a practical operating point.
+\end{Proof}
+
+\clearpage
+\section{Interpretation for This Project}
+The formulas in this chapter explain observed behavior from level progression:
+
+\begin{enumerate}
+    \item versions v0--v2 have very high packet overhead,
+    \item v5--v7 improve correctness but remain latency-bound,
+    \item v9 and above improve utilization through pipelining,
+    \item v10 and above reduce packet count through chunking,
+    \item v12 and above improve timing decisions through adaptive RTO,
+    \item v13 and above balance aggressiveness and stability using congestion
+    control logic and recovery-aware retransmission behavior,
+    \item v15--v24 extend the same transport ideas with richer TCP-like
+    refinements, including timestamp and recovery-oriented control.
+\end{enumerate}
+
+This quantitative interpretation supports the implementation narrative in the
+previous chapter and sets context for the comparative results in the next
+chapter.

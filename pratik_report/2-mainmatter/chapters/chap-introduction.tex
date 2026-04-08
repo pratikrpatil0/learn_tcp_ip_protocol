@@ -1,0 +1,240 @@
+\chapter{Introduction}
+Reliable communication is a central problem in computer networks. At first
+look, sending data from one machine to another may appear simple. In practice,
+real communication must handle packet loss, duplication, corruption, delay
+variation, and out-of-order delivery. Transport protocols such as TCP were
+designed to solve these issues. However, the behavior of TCP can feel abstract
+when studied only through theory.
+
+This project addresses that learning gap through a staged implementation of
+transport protocol features over UDP sockets in C. Instead of directly using
+the operating system's TCP stack, the project builds many TCP-like ideas in
+application code. This approach makes each design decision visible. The sender
+and receiver logic, sequence management, timeout handling, and congestion
+responses are explicitly implemented and observed.
+
+The full work contains twenty-five sender-receiver versions, from level 0 to
+level 24. The earliest levels implement bit transmission and byte
+reconstruction. The middle levels introduce error detection and stop-and-wait
+reliability. The advanced levels include handshake, checksum, sliding window,
+selective-repeat style buffering, adaptive timeout estimation, timestamp and
+SACK-like ideas, and congestion control mechanisms that resemble TCP Reno
+behavior.
+
+\clearpage
+\section{Problem Statement}
+The project aims to answer one practical question:
+
+\begin{displayquote}\raggedright\doublespacing
+How can we incrementally construct a reliable and adaptive transport protocol over unreliable UDP datagrams while keeping the implementation understandable for learning and experimentation, while also using AI tools responsibly for idea support (not code copying) and validating every design step through standard networking textbooks?
+\end{displayquote}
+
+\vspace{\baselineskip}
+
+UDP provides only best-effort datagram delivery. It does not guarantee packet
+arrival, packet order, duplicate suppression, congestion control, or connection
+state. Therefore, the application layer must implement these properties if they
+are required. This project demonstrates that process step by step. The
+learning method in this work is book-first and concept-first: AI tools were
+used only to discuss alternatives, debugging direction, and pseudocode ideas,
+while final logic, code writing, and verification were done manually.
+
+The conceptual path follows a top-down networking approach in the spirit of
+widely used teaching references, especially Kurose and Ross for protocol
+layering and transport intuition, Stevens for implementation-level thinking
+about TCP/IP behavior, and Tanenbaum and Wetherall for broader networking
+foundations \cite{kurose_ross,stevens_tcpip,tanenbaum_wetherall,rfc793,rfc6298,rfc5681,rfc2018,rfc7323,rfc768,beej_guide}.
+
+\clearpage
+\section{Project Objectives}
+The major objectives of the project are listed below.
+
+\begin{enumerate}
+	\item Build a complete progression from raw transmission to advanced
+	transport control.
+	\item Keep each version self-contained, so that learners can compare
+	behavior across levels.
+	\item Follow a responsible learning workflow: study textbook concepts first,
+	then use AI tools only for idea exploration, and finally implement and test
+	independently without copying generated code.
+	\item Implement reliability features incrementally: parity, ACK/NAK,
+	timeout retries, sequence control, and retransmission logic.
+	\item Move from one-byte packets to chunk-based payload transfer to improve
+	throughput.
+	\item Introduce adaptive timing and congestion-aware sending to emulate
+	practical transport design.
+	\item Document implementation, assumptions, limitations, and future
+	improvements in a formal technical report.
+\end{enumerate}
+
+	\clearpage
+\section{System Context and Setup}
+All implementations use IPv4 UDP sockets (\texttt{AF\_INET} with
+\texttt{SOCK\_DGRAM}) on port 9090. The sender transmits to localhost
+(\texttt{127.0.0.1}), and the receiver binds to \texttt{INADDR\_ANY}. Typical
+message size in this project is bounded to around 99 characters.
+
+The same high-level execution pattern is followed in all versions:
+
+\begin{enumerate}
+	\item Start receiver.
+	\item Start sender.
+	\item Enter message in sender terminal.
+	\item Observe transfer, ACK behavior, retries, and completion.
+\end{enumerate}
+
+\section{Architecture Overview}
+Figure \ref{fig:system-overview} shows the conceptual architecture. Even though
+the implementation is local (single host), the control logic is equivalent to a
+networked deployment.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+	node distance=1.8cm,
+	boxL/.style={draw, rounded corners=3pt, thick, minimum width=4.0cm, minimum height=1.05cm, align=center, fill=blue!10, draw=blue!55!black},
+	boxR/.style={draw, rounded corners=3pt, thick, minimum width=4.0cm, minimum height=1.05cm, align=center, fill=teal!10, draw=teal!55!black},
+	arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+	flow/.style={-{Latex[length=3mm]}, very thick, draw=orange!75!black}
+]
+\node[boxL] (app1) {Sender Application\\(Message Input)};
+\node[boxL, below=of app1] (proto1) {Protocol Logic\\(seq, ACK, timeout, cwnd)};
+\node[boxL, below=of proto1] (udp1) {UDP Socket API};
+
+\node[boxR, right=4.8cm of app1] (app2) {Receiver Application\\(Ordered Delivery)};
+\node[boxR, below=of app2] (proto2) {Protocol Logic\\(validation, buffering, ACK)};
+\node[boxR, below=of proto2] (udp2) {UDP Socket API};
+
+\draw[arr] (app1) -- (proto1);
+\draw[arr] (proto1) -- (udp1);
+\draw[flow] (udp1.east) -- node[above, fill=white, inner sep=1pt]{Data Packets} (udp2.west);
+\draw[flow] (udp2.west) -- ++(-0.2,0) |- (udp1.east);
+\node[fill=white, inner sep=1pt] at ($(udp1)!0.48!(udp2)+(0,-0.34)$) {ACK/NAK};
+\draw[arr] (udp2) -- (proto2);
+\draw[arr] (proto2) -- (app2);
+\end{tikzpicture}
+}
+\caption{High-level architecture of the sender-receiver protocol system over
+UDP.
+}
+\label{fig:system-overview}
+\end{figure}
+
+\section{Version Progression Strategy}
+The project does not attempt to implement all features at once. Instead, it
+follows a layered progression model:
+
+\begin{enumerate}
+	\item \textbf{Foundation phase (v0--v2):} bit and byte transfer.
+	\item \textbf{Reliability phase (v3--v7):} parity, sequencing,
+	stop-and-wait, timeout retries, packet struct design.
+	\item \textbf{Transport phase (v8--v14):} handshake, checksum,
+	connection close, sliding window, chunking.
+	\item \textbf{Adaptive and Reno-like phase (v15--v24):} adaptive RTO,
+	timestamp/SACK-inspired refinements, congestion control, fast retransmit,
+	and recovery-oriented behavior.
+\end{enumerate}
+
+\section{Version-Wise Reference Backbone}
+Each version family is grounded in a small set of reference sources that shaped
+its design and implementation style.
+
+\begin{table}[h!]
+\centering
+\renewcommand{\arraystretch}{1.22}
+\begin{tabular}{|p{2.4cm}|p{4.0cm}|p{7.7cm}|}
+\hline
+\textbf{Version Family} & \textbf{Main Ideas} & \textbf{Reference Backbone and Code Inspiration} \\
+\hline
+v0--v2 & UDP bit/byte transfer, reconstruction, end-of-message handling & RFC 768 for UDP, Beej's Guide for socket programming basics, Stevens for implementation discipline, Kurose and Ross for protocol layering \cite{rfc768,beej_guide,stevens_tcpip,kurose_ross} \\
+\hline
+v3--v7 & Parity, sequence awareness, ACK/NAK, stop-and-wait reliability & Kurose and Ross for reliable transport concepts, Tanenbaum and Wetherall for error detection and protocol reasoning, Stevens for practical C socket implementation \cite{kurose_ross,tanenbaum_wetherall,stevens_tcpip} \\
+\hline
+v8--v14 & Handshake, checksum, sliding window, selective-repeat style buffering, adaptive timeout, fast retransmit & RFC 793, RFC 6298, Kurose and Ross, and Stevens for transport semantics and timer design \cite{rfc793,rfc6298,kurose_ross,stevens_tcpip} \\
+\hline
+v15--v24 & Adaptive control, RTT tuning, timestamps, SACK-like ideas, congestion avoidance, educational Reno-style recovery & RFC 5681, RFC 2018, RFC 7323, RFC 6298, RFC 793, Stevens, and Kurose and Ross \cite{rfc5681,rfc2018,rfc7323,rfc6298,rfc793,stevens_tcpip,kurose_ross} \\
+\hline
+\end{tabular}
+\caption{Reference backbone for the staged protocol families.}
+\label{tab:reference-backbone}
+\end{table}
+
+This phased model provides two major advantages. First, debugging remains
+manageable because each level introduces a small set of new behaviors. Second,
+the relationship between protocol features and observed performance becomes
+clear in experiments.
+
+\section{Educational Value}
+From an academic perspective, this project provides a practical bridge between
+computer networks, systems programming, and algorithm design. Core concepts
+from textbooks become concrete:
+
+\begin{enumerate}
+	\item \textbf{Data integrity:} parity and checksum validation.
+	\item \textbf{Reliability:} acknowledgement and retransmission.
+	\item \textbf{Ordering:} sequence numbers and expected sequence tracking.
+	\item \textbf{Pipelining:} multiple in-flight packets via windows.
+	\item \textbf{Flow under uncertainty:} adaptive timeout and congestion
+	response.
+\end{enumerate}
+
+Because each feature is implemented manually, the learner sees trade-offs
+directly. For example, stop-and-wait is easy to reason about but inefficient at
+higher latency. Sliding windows improve throughput but increase state
+complexity. Selective-repeat buffering improves robustness under reordering but
+requires careful bookkeeping.
+
+The interactive visualizer further strengthens educational value by showing the
+sender code, receiver code, finite state machine, and UML timeline together.
+That makes protocol state transitions easier to follow for beginners who are
+learning transport concepts for the first time.
+
+\section{Scope and Boundaries}
+The project is intentionally scoped for learning and controlled experiments.
+Important boundaries are listed below.
+
+\begin{enumerate}
+	\item Communication is primarily localhost based.
+	\item Address and port are hardcoded in most versions.
+	\item Security features such as encryption and authentication are not
+	included.
+	\item Receiver-advertised window and full SACK format are not fully
+	implemented.
+	\item Most versions handle one sender-receiver flow at a time.
+\end{enumerate}
+
+These boundaries are acceptable for a graduation project focused on protocol
+mechanics. They also leave clear directions for future extension.
+
+\section{Research Questions}
+The implementation and analysis are organized around practical questions:
+
+\begin{enumerate}
+	\item How much reliability can be achieved using only user-space logic over
+	UDP?
+	\item At which stages does throughput improve significantly, and why?
+	\item How does adaptive timeout outperform fixed timeout under variable
+	delays?
+	\item How does congestion window control affect retransmission behavior and
+	completion time?
+	\item How can students use AI tools responsibly for protocol learning
+	(idea-level guidance and debugging support) while preserving original
+	implementation ownership and textbook-grounded correctness?
+\end{enumerate}
+
+	\clearpage
+\section{Report Organization}
+The remainder of this report is structured as follows.
+
+\begin{enumerate}
+	\item Chapter 2 describes protocol design and version-wise implementation
+	details from the foundation phase to the advanced control phase.
+	\item Chapter 3 presents algorithmic foundations and quantitative analysis
+	with equations.
+	\item Chapter 4 provides illustrations, result-oriented tables, practical
+	observations, and final conclusions.
+\end{enumerate}
+
+This structure keeps the narrative simple: design first, analysis second,
+evaluation and insights third.

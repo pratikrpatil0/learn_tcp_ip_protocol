@@ -1,0 +1,382 @@
+\chapter{Extended Technical Appendix}
+
+This appendix provides additional implementation depth for the TCP/IP-inspired
+UDP project. It is written to support evaluation, viva discussion, and future
+continuation of the codebase.
+
+\section{Appendix Purpose}
+The main chapters describe architecture and results at report level. This
+appendix goes deeper into operational details:
+
+\begin{enumerate}
+    \item detailed behavior of sender and receiver loops,
+    \item practical debug checklist used during development,
+    \item experiment script style and repeatable run plan,
+    \item level-specific observations and pitfalls,
+    \item extension blueprint for future cohorts.
+\end{enumerate}
+
+\section{Complete Build and Run Workflow}
+The project uses plain GCC and does not depend on external networking
+frameworks. A standard run for one level follows the same sequence.
+
+\subsection{Compile}
+For version $N$:
+\begin{enumerate}
+    \item \texttt{gcc -std=c99 -o receiver\_N receiver\_N.c}
+    \item \texttt{gcc -std=c99 -o sender\_N sender\_N.c}
+\end{enumerate}
+
+\subsection{Execute}
+\begin{enumerate}
+    \item Open terminal 1 and run \texttt{./receiver\_N}
+    \item Open terminal 2 and run \texttt{./sender\_N}
+    \item Enter test message in sender terminal.
+\end{enumerate}
+
+\subsection{Operational Notes}
+\begin{enumerate}
+    \item Always start receiver first so bind/listen path is active.
+    \item Keep one active sender-receiver pair on port 9090 at a time.
+    \item If process hangs after experiments, terminate old binaries and rerun.
+\end{enumerate}
+
+\section{Debug Checklist Used in This Project}
+The following checklist was used repeatedly and is useful for future maintenance.
+
+\begin{enumerate}
+    \item Verify sender destination address and port.
+    \item Verify receiver bind success and error handling.
+    \item Confirm packet field initialization before checksum computation.
+    \item Confirm checksum recomputation resets checksum field to zero.
+    \item Confirm sender base and next\_to\_send pointers satisfy
+    $base \le next\_to\_send$.
+    \item Confirm ACK handling updates sender window exactly once.
+    \item Confirm duplicate packet handling does not duplicate delivery.
+    \item Confirm timeout value is in safe range and retry cap prevents
+    infinite loops.
+    \item Confirm FIN handshake executes and sockets are closed gracefully.
+\end{enumerate}
+
+\clearpage
+\section{Detailed Behavior: Sender Core Loop}
+Across advanced versions, sender logic follows a common event-driven pattern:
+
+\begin{enumerate}
+    \item Initialize socket, destination, timeout controls.
+    \item Perform handshake if protocol level requires session setup.
+    \item Segment message into packets/chunks.
+    \item Transmit packets while keeping in-flight count below window limit.
+    \item Wait for ACKs and slide window accordingly.
+    \item Detect timeout or duplicate ACK events and trigger retransmission
+    policy.
+    \item Close connection using FIN logic.
+\end{enumerate}
+
+\subsection{State Variables}
+The most influential sender variables in high-level versions are:
+
+\begin{enumerate}
+    \item \texttt{base}: oldest unacknowledged sequence.
+    \item \texttt{next\_to\_send}: next sequence eligible for send.
+    \item \texttt{window\_size}: configured or dynamic send limit.
+    \item \texttt{rto\_ms}: retransmission timeout in milliseconds.
+    \item \texttt{cwnd} and \texttt{ssthresh}: congestion-control state.
+    \item duplicate ACK counters per acknowledgement number.
+\end{enumerate}
+
+\clearpage
+\section{Detailed Behavior: Receiver Core Loop}
+Advanced receiver implementations use predictable stages:
+
+\begin{enumerate}
+    \item Validate packet checksum and flags.
+    \item Check sequence relation with \texttt{expected\_seq}.
+    \item For in-order data, deliver immediately and advance expectation.
+    \item For out-of-order but in-window data, buffer and ACK appropriately.
+    \item For duplicate data, re-ACK to help sender convergence.
+    \item Process FIN and release resources cleanly.
+\end{enumerate}
+
+\subsection{Receiver Buffering in Selective-Repeat Style}
+Selective-repeat-like receiver behavior uses parallel arrays for packet
+presence, payload storage, and payload length. This avoids data loss during
+reordering and allows in-order flush once missing sequence arrives.
+
+\section{Version-by-Version Pitfall Notes}
+This section captures practical issues found during progressive development.
+
+\subsection{v0--v2 Pitfalls}
+\begin{enumerate}
+    \item Mistake in bit ordering can invert character reconstruction.
+    \item Missing null terminator logic causes receiver to block indefinitely.
+    \item Delay control via \texttt{usleep} is environment-dependent.
+\end{enumerate}
+
+\subsection{v3--v7 Pitfalls}
+\begin{enumerate}
+    \item Parity mismatch handling must be deterministic on both ends.
+    \item ACK/NAK message format ambiguity can break sender wait logic.
+    \item Retry loops must cap attempts to avoid infinite retransmit cycles.
+\end{enumerate}
+
+\subsection{v8--v10 Pitfalls}
+\begin{enumerate}
+    \item Handshake flags must not overlap incorrectly.
+    \item Checksum must be recomputed after all payload bytes are assigned.
+    \item Sliding window pointer arithmetic is prone to off-by-one errors.
+\end{enumerate}
+
+\subsection{v11--v14 Pitfalls}
+\begin{enumerate}
+    \item Out-of-order buffer flush must preserve sequence continuity.
+    \item Adaptive RTO can oscillate without stable RTT sampling.
+    \item Duplicate ACK counters must reset correctly after state transitions.
+    \item Fast recovery exits can be mishandled if ACK interpretation is vague.
+\end{enumerate}
+
+\section{Experiment Design Template}
+A repeatable experiment protocol is essential for fair comparison. The template
+used in this project is shown below.
+
+\begin{table}[h]
+\centering
+\captionabove{Standard experiment template used for each protocol version.}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{|p{3.5cm}|p{9.4cm}|}
+\hline
+\textbf{Field} & \textbf{Description} \\
+\hline
+Version & sender\_N / receiver\_N pair \\
+\hline
+Message length & Short (20 chars), medium (60 chars), long (95 chars) \\
+\hline
+Fault setting & No fault / delay / simulated loss / duplicate packet scenario \\
+\hline
+Runs per case & Minimum 10 runs for stable average \\
+\hline
+Metrics & Completion time, retransmissions, ACK count, success/failure \\
+\hline
+Notes & Any abnormal behavior or timeout event logs \\
+\hline
+\end{tabular}
+\label{tab:experiment-template}
+\end{table}
+
+\clearpage
+\section{Sample Observation Narrative}
+The following narrative style was used to interpret test runs.
+
+\begin{displayquote}
+In level 9 under moderate induced delay, sender experienced repeated timeout at
+window base. Retransmission from base restored progress, but overall completion
+time increased significantly compared to delay-free run. Receiver ACK pattern
+confirmed cumulative behavior.
+\end{displayquote}
+
+\begin{displayquote}
+In level 12 under variable delay, adaptive RTO reduced false timeout events
+after initial RTT stabilization. Retransmission ratio decreased compared to
+fixed-timeout configuration.
+\end{displayquote}
+
+\begin{displayquote}
+In level 14 with synthetic packet gap, triple duplicate ACK condition triggered
+fast retransmit before timeout expiry. Recovery was visibly faster than
+timeout-driven recovery path.
+\end{displayquote}
+
+\section{Illustrative State Machine View}
+\vspace{2\baselineskip}
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    stA/.style={draw, rounded corners=4pt, thick, minimum width=4.3cm, minimum height=1.15cm, align=center, fill=cyan!14, draw=cyan!55!black},
+    stB/.style={draw, rounded corners=4pt, thick, minimum width=4.3cm, minimum height=1.15cm, align=center, fill=yellow!18, draw=orange!65!black},
+    stC/.style={draw, rounded corners=4pt, thick, minimum width=4.3cm, minimum height=1.15cm, align=center, fill=green!14, draw=green!45!black},
+    arr/.style={-{Latex[length=3.2mm]}, very thick, draw=black!82},
+    lab/.style={fill=white, inner sep=1.2pt, font=\footnotesize}
+]
+\node[stA] (idle) at (0,0) {Idle};
+\node[stB] (syn) at (5.8,0) {Handshake};
+\node[stC] (send) at (11.6,0) {Send Window};
+\node[stC] (wait) at (17.4,0) {Wait ACK};
+\node[stA] (fin) at (23.2,0) {Teardown};
+\node[stB] (retx) at (14.5,-2.9) {Fast Retransmit};
+
+\draw[arr] (idle.east) -- (syn.west);
+\draw[arr] (syn.east) -- (send.west);
+\draw[arr] (send.east) -- (wait.west);
+\draw[arr] (wait.east) -- node[above,lab]{all data acked} (fin.west);
+\draw[arr] (wait.south) -- node[right,lab]{timeout / dup ACKs} (retx.north);
+\draw[arr] (retx.west) to[bend right=18] node[below,lab]{retry path} (send.south);
+\end{tikzpicture}%
+}%
+
+\caption{Simplified sender-side operational state flow in advanced versions.
+}
+\label{fig:appendix-state-machine}
+\end{figure}
+
+\section{Protocol Trace Formatting Recommendation}
+\vspace{0.8\baselineskip}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    fld/.style={draw, rounded corners=4pt, thick, minimum width=4.6cm, minimum height=1.25cm, align=center, fill=teal!10, draw=teal!60!black, font=\small},
+    eventfld/.style={draw, rounded corners=4pt, thick, minimum width=6.1cm, minimum height=1.25cm, align=center, fill=teal!10, draw=teal!60!black, font=\small},
+    arr/.style={-{Latex[length=3.1mm]}, very thick, draw=black!82}
+]
+\node[fld] (f1) at (0,0) {[timestamp]};
+\node[fld] (f2) at (5.5,0) {[role=sender|receiver]};
+\node[eventfld] (f3) at (12.2,0) {[event=send|recv|ack|timeout|retransmit]};
+
+\node[fld] (f4) at (0,-2.6) {[seq=x] [ack=y]};
+\node[fld] (f5) at (5.5,-2.6) {[cwnd=z] [rto=ms]};
+\node[fld] (f6) at (12.2,-2.6) {[note=text]};
+
+\draw[arr] (f1.east) -- (f2.west);
+\draw[arr] (f2.east) -- (f3.west);
+\draw[arr] (f1.south) -- (f4.north);
+\draw[arr] (f2.south) -- (f5.north);
+\draw[arr] (f3.south) -- (f6.north);
+\draw[arr] (f4.east) -- (f5.west);
+\draw[arr] (f5.east) -- (f6.west);
+\end{tikzpicture}%
+}%
+
+\caption{Recommended structured protocol-trace fields for automated analysis.
+}
+\label{fig:trace-format-diagram}
+\end{figure}
+
+\section{Suggested Quantitative Extensions}
+Future project groups can convert this implementation into a mini benchmark
+suite by adding automated scripts. Useful extensions include:
+
+\begin{enumerate}
+    \item throughput vs message size curve per version,
+    \item retransmission ratio vs induced packet-loss probability,
+    \item completion time distribution under delay jitter,
+    \item fairness comparison under two parallel sender flows,
+    \item sensitivity of adaptive RTO to \(\alpha\) and \(\beta\) choices.
+\end{enumerate}
+
+\section{Security and Reliability Perspective}
+The project intentionally focuses on reliability and congestion behavior, not
+security. However, in practical deployments, integrity and authenticity both
+matter. Checksum detects random corruption but does not prevent malicious packet
+modification. A production extension would include:
+
+\begin{enumerate}
+    \item message authentication,
+    \item optional encryption,
+    \item replay protection,
+    \item session identity validation.
+\end{enumerate}
+
+These are orthogonal to transport logic but critical for real systems.
+
+\clearpage
+\section{Code Organization Recommendations}
+As code complexity grows, modularization becomes important. Recommended
+refactoring pattern:
+
+\begin{enumerate}
+    \item \texttt{packet.h/.c} for packet structs and checksum utilities,
+    \item \texttt{timer.h/.c} for RTT/RTO and timestamp helpers,
+    \item \texttt{window.h/.c} for send/receive window operations,
+    \item \texttt{congestion.h/.c} for cwnd and recovery transitions,
+    \item \texttt{main\_sender.c} and \texttt{main\_receiver.c} for orchestration.
+\end{enumerate}
+
+This separation reduces duplication across version files.
+
+\section{Reproducibility Notes}
+To ensure reproducibility of results in academic evaluation:
+
+\begin{enumerate}
+    \item record compiler version and build flags,
+    \item record operating system and kernel details,
+    \item isolate background network-intensive applications,
+    \item run each experiment multiple times,
+    \item report average and spread (minimum/maximum or standard deviation).
+\end{enumerate}
+
+Without reproducibility controls, protocol comparisons may appear inconsistent.
+
+\section{Expanded Reflection on Learning Outcomes}
+This project created strong practical learning in four dimensions.
+
+\subsection{Networking Concepts}
+Ideas such as reliable delivery, sequence management, and ACK policies became
+much clearer after implementing them manually.
+
+\subsection{Systems Programming}
+Low-level C socket work, timeout configuration, and careful memory handling
+improved confidence in systems programming discipline.
+
+\subsection{Algorithmic Thinking}
+Adaptive timeout and congestion behavior required state-machine thinking and
+careful event response logic.
+
+\subsection{Technical Communication}
+The staged codebase enabled structured report writing, where each chapter and
+section maps naturally to a protocol capability.
+
+\section{Expanded Testing Scenarios and Interpretation}
+Recommended scenarios include clean-channel baseline, delayed ACK,
+packet-loss injection, out-of-order arrival, duplicate ACK bursts, and
+near-limit message size tests. Together, these cases expose correctness,
+recovery speed, timeout behavior, and congestion adaptation quality.
+
+\section{Evaluation Rubric for Academic Assessment}
+The following rubric can be used during project review.
+
+\begin{table}[h]
+\centering
+\captionabove{Suggested assessment rubric for implementation quality.}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{|p{3.3cm}|>{\centering\arraybackslash}p{2.1cm}|p{7.3cm}|}
+\hline
+\textbf{Criterion} & \textbf{Weight} & \textbf{Evaluation Focus} \\
+\hline
+Correctness & 30\% & Data integrity checks, ordered delivery, clean teardown \\
+\hline
+Reliability & 20\% & Behavior under loss, timeout and retransmission policy quality \\
+\hline
+Efficiency & 15\% & Throughput trend improvement from low to high levels \\
+\hline
+Code Quality & 15\% & Clarity, modularity, safety checks, variable naming \\
+\hline
+Analysis & 10\% & Metric reporting and explanation quality \\
+\hline
+Documentation & 10\% & Diagram quality, chapter structure, reproducibility notes \\
+\hline
+\end{tabular}
+\label{tab:assessment-rubric}
+\end{table}
+
+\clearpage
+\section{Final Reflection}
+From a learning viewpoint, the strongest contribution of this project is the
+clear mapping between theory and implementation. Concepts often memorized in
+networking courses become operational behaviors that can be observed directly in
+terminal traces. The staged versions form a practical curriculum in protocol
+engineering: encoding, integrity checks, reliability loops, pipelining,
+adaptation, and congestion response.
+
+This project also demonstrates that protocol design is fundamentally about
+trade-offs. Stronger reliability adds state. Higher throughput adds complexity.
+Faster recovery requires careful event interpretation. Better adaptability needs
+stable measurement. Understanding and balancing these trade-offs is the core
+skill developed through this work.
+
+\section{Appendix Summary}
+This appendix extends the main report with operational detail, implementation
+insights, and actionable next steps. Together with the main chapters, it
+provides a complete technical narrative from basic UDP communication to
+TCP-inspired reliability and congestion control behavior in C.TCP-inspired transport control through deep learning exercises.

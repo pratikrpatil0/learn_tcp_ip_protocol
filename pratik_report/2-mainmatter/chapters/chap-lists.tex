@@ -1,0 +1,1281 @@
+\chapter{Protocol Design and Implementation}
+
+This chapter presents the full version-by-version protocol evolution. The
+implementation strategy is incremental. Each new version keeps previous
+capabilities and introduces one or more carefully selected features. This
+approach improves correctness and makes debugging practical.
+
+\section{Global Design Principles}
+The same design principles are followed across all versions.
+
+\begin{enumerate}
+    \item \textbf{Single responsibility per stage:} each version focuses on a
+    specific protocol concept.
+    \item \textbf{Explicit state:} sender and receiver maintain clearly named
+    variables for sequence numbers, timeouts, and window state.
+    \item \textbf{Deterministic transitions:} packet receipt leads to a defined
+    state update path.
+    \item \textbf{Traceable behavior:} console output helps validate the
+    protocol timeline in each test run.
+\end{enumerate}
+
+\clearpage
+\section{Version Family A: Bit and Byte Transfer (v0--v2)}
+The first family introduces communication mechanics at the lowest useful level.
+
+\subsection{Version 0: Single-Bit UDP Demo}
+In level 0, the sender sends one bit to the receiver using a UDP datagram.
+There is no framing beyond the single value. This version validates:
+
+\begin{enumerate}
+    \item socket creation,
+    \item destination addressing,
+    \item datagram transmission,
+    \item datagram reception.
+\end{enumerate}
+
+This step is intentionally minimal and prepares the path for structured packet
+design.
+
+\vspace*{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.4cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=4.1cm, minimum height=1.0cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=4.1cm, minimum height=1.0cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=3.8cm, minimum height=0.9cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=3mm]}, very thick, draw=red!70!black}
+]
+\node[sender] (sapp) at (0,1.8) {Sender Application\\(bit input: 0 or 1)};
+\node[sender] (sudp) at (0,0) {Sender UDP Socket\\(sendto)};
+
+\node[channel] (net) at (6,0) {Unreliable UDP Network};
+
+\node[receiver] (rudp) at (12,0) {Receiver UDP Socket\\(recvfrom)};
+\node[receiver] (rapp) at (12,1.8) {Receiver Application\\(bit output)};
+
+\draw[arr] (sapp) -- (sudp);
+\draw[flow] (sudp.east) -- (net.west);
+\draw[flow] (net.east) -- (rudp.west);
+\draw[arr] (rudp) -- (rapp);
+
+\node[align=center] at (6,-1.35) {No framing, no ACK/NAK, no retransmission\\(only basic UDP send and receive path)};
+\end{tikzpicture}%
+}
+\caption{Version 0 architecture: single-bit UDP transmission from sender to receiver.
+}
+\label{fig:v0-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 1: Character as 8 Independent Bits}
+In level 1, one character is encoded into 8 bits and sent as 8 UDP datagrams.
+The receiver reconstructs the byte by shifting and OR operations. Timing is
+regulated using small sleep intervals so packet order remains easier to track
+in local runs.
+
+Educational value:
+\begin{enumerate}
+    \item understanding of binary representation,
+    \item significance of bit order,
+    \item reconstruction logic at receiver side.
+\end{enumerate}
+
+\vspace{1.25\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=4.4cm, minimum height=1.0cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=4.6cm, minimum height=1.0cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.0cm, minimum height=0.9cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=3mm]}, very thick, draw=red!70!black}
+]
+\node[sender] (sapp) at (0,2.0) {Sender Application\\(input: one character)};
+\node[sender] (senc) at (0,0.4) {Bit Encoder\\(split byte into b7...b0)};
+\node[sender] (sudp) at (0,-1.2) {Sender UDP Socket\\(8 sendto calls)};
+
+\node[channel] (net) at (6,-1.2) {Unreliable UDP Network};
+
+\node[receiver] (rudp) at (12,-1.2) {Receiver UDP Socket\\(8 recvfrom calls)};
+\node[receiver] (rdec) at (12,0.4) {Byte Reconstructor\\(shift + OR accumulation)};
+\node[receiver] (rapp) at (12,2.0) {Receiver Application\\(restored character)};
+
+\draw[arr] (sapp) -- (senc);
+\draw[arr] (senc) -- (sudp);
+\draw[flow] (sudp.east) -- (net.west);
+\draw[flow] (net.east) -- (rudp.west);
+\draw[arr] (rudp) -- (rdec);
+\draw[arr] (rdec) -- (rapp);
+
+\node[align=center] at (6,-2.45) {Datagram stream: bit\_7, bit\_6, ..., bit\_0\\Short sleep intervals help preserve local ordering during experiments};
+\end{tikzpicture}%
+}
+\caption{Version 1 architecture: one character transmitted as eight UDP bit-datagrams and reconstructed at receiver side.
+}
+\label{fig:v1-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 2: Full String by Bit Stream}
+Level 2 extends the bit-stream approach to full strings. A null character is
+sent at the end to mark message completion. At this stage, communication works
+for complete user input, but no error detection or reliability control exists.
+
+\vspace{0.75\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=4.9cm, minimum height=1.0cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=4.9cm, minimum height=1.0cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.0cm, minimum height=0.9cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=3mm]}, very thick, draw=red!70!black}
+]
+\node[sender] (sapp) at (0,2.0) {Sender Application\\(input: full string)};
+\node[sender] (sstream) at (0,0.4) {Bit Stream Builder\\(all characters to bit stream + NULL terminator)};
+\node[sender] (sudp) at (0,-1.2) {Sender UDP Socket\\(multiple sendto calls)};
+
+\node[channel] (net) at (6,-1.2) {Unreliable UDP Network};
+
+\node[receiver] (rudp) at (12,-1.2) {Receiver UDP Socket\\(multiple recvfrom calls)};
+\node[receiver] (rparse) at (12,0.4) {Stream Parser\\(rebuild bytes until NULL detected)};
+\node[receiver] (rapp) at (12,2.0) {Receiver Application\\(complete message output)};
+
+\draw[arr] (sapp) -- (sstream);
+\draw[arr] (sstream) -- (sudp);
+\draw[flow] (sudp.east) -- (net.west);
+\draw[flow] (net.east) -- (rudp.west);
+\draw[arr] (rudp) -- (rparse);
+\draw[arr] (rparse) -- (rapp);
+
+\node[align=center] at (6,-2.45) {Transfer unit remains bit-level datagrams; end-of-message is marked by NULL character\\No integrity check and no reliability loop at this stage};
+\end{tikzpicture}%
+}
+\caption{Version 2 architecture: full string transmitted as a bit stream with NULL-terminated completion.
+}
+\label{fig:v2-architecture}
+\end{figure}
+
+\clearpage
+\section{Version Family B: Error Detection and Stop-and-Wait (v3--v7)}
+Family B introduces reliability fundamentals.
+\subsection{Version 3: Parity Detection}
+For each byte, sender computes parity and transmits it with payload bits.
+Receiver recomputes parity and compares values.
+
+Outcome:
+\begin{enumerate}
+    \item corruption can be detected,
+    \item corruption cannot yet be corrected.
+\end{enumerate}
+
+Parity is simple and fast but weak against many multi-bit error patterns.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=4.7cm, minimum height=1.0cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=4.9cm, minimum height=1.0cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.1cm, minimum height=0.9cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=3mm]}, very thick, draw=red!70!black}
+]
+\node[sender] (sapp) at (0,2.0) {Sender Application\\(payload byte input)};
+\node[sender] (spar) at (0,0.4) {Parity Generator\\(compute parity bit)};
+\node[sender] (sudp) at (0,-1.2) {Sender UDP Socket\\(send payload + parity)};
+
+\node[channel] (net) at (6,-1.2) {Unreliable UDP Network};
+
+\node[receiver] (rudp) at (12,-1.2) {Receiver UDP Socket\\(receive payload + parity)};
+\node[receiver] (rchk) at (12,0.4) {Parity Checker\\(recompute and compare)};
+\node[receiver] (rout) at (12,2.0) {Receiver Output\\(accept or flag corruption)};
+
+\draw[arr] (sapp) -- (spar);
+\draw[arr] (spar) -- (sudp);
+\draw[flow] (sudp.east) -- (net.west);
+\draw[flow] (net.east) -- (rudp.west);
+\draw[arr] (rudp) -- (rchk);
+\draw[arr] (rchk) -- (rout);
+
+\node[align=center] at (6,-2.45) {Parity mismatch indicates corruption can be detected\\No correction and no retransmission in this version};
+\end{tikzpicture}%
+}
+\caption{Version 3 architecture: parity-based corruption detection over UDP payload transfer.
+}
+\label{fig:v3-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 4: Sequence Numbers}
+Level 4 attaches sequence numbers to per-character transfer. This improves
+observability and creates the basis for reliable acknowledgement logic.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.0cm, minimum height=1.0cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.0cm, minimum height=1.0cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.1cm, minimum height=0.9cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=3mm]}, very thick, draw=red!70!black}
+]
+\node[sender] (sapp) at (0,2.0) {Sender Application\\(character stream)};
+\node[sender] (spkt) at (0,0.4) {Sequencer\\(attach seq number to each unit)};
+\node[sender] (sudp) at (0,-1.2) {Sender UDP Socket\\(send \{seq, payload\})};
+
+\node[channel] (net) at (6,-1.2) {Unreliable UDP Network};
+
+\node[receiver] (rudp) at (12,-1.2) {Receiver UDP Socket\\(receive \{seq, payload\})};
+\node[receiver] (rord) at (12,0.4) {Sequence Observer\\(track arrival order by seq)};
+\node[receiver] (rapp) at (12,2.0) {Receiver Output\\(ordered view and diagnostics)};
+
+\draw[arr] (sapp) -- (spkt);
+\draw[arr] (spkt) -- (sudp);
+\draw[flow] (sudp.east) -- (net.west);
+\draw[flow] (net.east) -- (rudp.west);
+\draw[arr] (rudp) -- (rord);
+\draw[arr] (rord) -- (rapp);
+
+\node[align=center] at (6,-2.45) {Sequence numbers increase observability of packet order and duplicates\\This stage prepares state tracking needed for ACK-based reliability};
+\end{tikzpicture}%
+}
+\caption{Version 4 architecture: sequence-numbered UDP units for order visibility and reliability groundwork.
+}
+\label{fig:v4-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 5: Stop-and-Wait ARQ with ACK/NAK}
+In level 5, receiver sends ACK on success and NAK on parity failure. Sender
+transmits one unit and waits for response before moving forward. This is the
+first true reliability loop.
+
+Strength:
+\begin{enumerate}
+    \item simple correctness argument,
+    \item easy handling of duplicates,
+    \item straightforward debugging.
+\end{enumerate}
+
+Limitation:
+\begin{enumerate}
+    \item low throughput because channel stays idle while waiting.
+\end{enumerate}
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.0cm, minimum height=1.0cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.0cm, minimum height=1.0cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.1cm, minimum height=0.9cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=3mm]}, very thick, draw=red!70!black},
+    ack/.style={-{Latex[length=3mm]}, very thick, draw=green!55!black}
+]
+\node[sender] (sapp) at (0,2.0) {Sender Logic\\(send one unit and wait)};
+\node[sender] (swait) at (0,0.4) {Stop-and-Wait Controller\\(state: wait for ACK/NAK)};
+\node[sender] (sudp) at (0,-1.2) {Sender UDP Socket\\(send DATA unit)};
+
+\node[channel] (net) at (6,-1.2) {Unreliable UDP Network};
+
+\node[receiver] (rudp) at (12,-1.2) {Receiver UDP Socket\\(receive DATA unit)};
+\node[receiver] (rcheck) at (12,0.4) {Parity Validation\\(success or failure)};
+\node[receiver] (rresp) at (12,2.0) {Response Generator\\(ACK on success, NAK on error)};
+
+\draw[arr] (sapp) -- (swait);
+\draw[arr] (swait) -- (sudp);
+\draw[flow] (sudp.east) -- node[above, fill=white, inner sep=1pt]{DATA} (net.west);
+\draw[flow] (net.east) -- (rudp.west);
+\draw[arr] (rudp) -- (rcheck);
+\draw[arr] (rcheck) -- (rresp);
+
+\draw[ack] (rresp.west) -- ++(-0.25,0) |- node[pos=0.22, left, fill=white, inner sep=1pt]{ACK/NAK} (swait.east);
+
+\node[align=center] at (6,-2.45) {First reliability loop: sender advances only after ACK\\On NAK, sender retransmits the same unit};
+\end{tikzpicture}%
+}
+\caption{Version 5 architecture: stop-and-wait ARQ with ACK/NAK feedback path.
+}
+\label{fig:v5-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 6: Timeout and Retries}
+Level 6 adds socket receive timeout and retry limit. If ACK does not arrive in
+time, sender retransmits. Receiver tracks expected sequence and handles
+duplicates conservatively.
+
+This version is the first practically robust design under packet loss.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.3cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.2cm, minimum height=1.0cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.2cm, minimum height=1.0cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.1cm, minimum height=0.9cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=2mm]}, very thick, draw=red!70!black},
+    ack/.style={-{Latex[length=2mm]}, very thick, draw=green!55!black},
+    retry/.style={-{Latex[length=3mm]}, very thick, draw=purple!70!black}
+]
+\node[sender] (sctrl) at (0,2.0) {Sender Reliability Controller\\(DATA send, timeout timer, retry limit)};
+\node[sender] (sstate) at (0,0.4) {State Machine\\(send to wait ACK to timeout to retransmit)};
+\node[sender] (sudp) at (0,-1.2) {Sender UDP Socket\\(DATA / retransmitted DATA)};
+
+\node[channel] (net) at (6,-1.2) {Unreliable UDP Network};
+
+\node[receiver] (rudp) at (12,-1.2) {Receiver UDP Socket\\(DATA receive)};
+\node[receiver] (rseq) at (12,0.4) {Expected-Seq Tracker\\(accept new, identify duplicates)};
+\node[receiver] (rack) at (12,2.0) {ACK Generator\\(ACK valid expected unit)};
+
+\draw[arr] (sctrl) -- (sstate);
+\draw[arr] (sstate) -- (sudp);
+\draw[flow] (sudp.east) -- node[above, fill=white, inner sep=1pt]{\small DATA} ++(0.4,0) -- (net.west);
+\draw[flow] (net.east) -- (rudp.west);
+\draw[arr] (rudp) -- (rseq);
+\draw[arr] (rseq) -- (rack);
+\draw[ack] (rack.west) -- ++(-3.5,0) |- node[pos=0.24, left, fill=white, inner sep=1pt]{ACK} (sstate.east);
+
+\node[align=center] at (6,-2.55) {Timeout prevents indefinite waiting; retries improve robustness under loss\\Receiver sequence tracking prevents duplicate delivery};
+\end{tikzpicture}%
+}
+\caption{Version 6 architecture: timeout-driven retransmission with duplicate-safe receiver handling.
+}
+\label{fig:v6-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 7: Struct-Based Packetization}
+Version 7 replaces loose fields with an explicit packet structure:
+\begin{enumerate}
+    \item sequence number,
+    \item payload,
+    \item parity,
+    \item end flag.
+\end{enumerate}
+
+This change improves code readability and prepares the architecture for
+multi-field TCP-like packets in later levels.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.35cm,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.8cm, minimum height=1.1cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.8cm, minimum height=1.1cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.6cm, minimum height=1.0cm, align=center, fill=orange!10, draw=orange!70!black},
+    arr/.style={-{Latex[length=3mm]}, thick, draw=black!80},
+    flow/.style={-{Latex[length=3mm]}, line width=1.1pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3mm]}, line width=1.1pt, draw=green!55!black}
+]
+\node[sender] (fields) at (-1.6,2.0) {Input Fields\\(sequence, payload, parity, end flag)};
+\node[sender] (pack) at (-1.6,0.4) {Packet Struct Builder\\(pack all fields into one frame)};
+\node[sender] (send) at (-1.6,-1.2) {Serialized Packet Sender\\(single structured packet)};
+
+\node[channel] (net) at (7.6,-1.2) {UDP Channel Carrying Structured Frame};
+
+\node[receiver] (recv) at (16.8,-1.2) {Packet Receiver\\(one frame arrives intact)};
+\node[receiver] (parse) at (16.8,0.4) {Struct Parser\\(extract seq, payload, parity, end)};
+\node[receiver] (validate) at (16.8,2.0) {Validation + Delivery\\(integrity and order checks)};
+
+\draw[arr] (fields) -- (pack);
+\draw[arr] (pack) -- (send);
+\draw[flow] (send.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{packet struct} (net.west);
+\draw[flow] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{structured frame} (recv.west);
+\draw[arr] (recv) -- (parse);
+\draw[arr] (parse) -- (validate);
+\draw[ack] (validate.west) -- ++(-1.8,0) |- node[pos=0.30, left, fill=white, inner sep=1pt]{status / ACK} (pack.east);
+
+\node[align=center] at (7.6,-2.75) {Version 7 unifies metadata and payload into one explicit structure\\Cleaner parsing reduces mismatch between sender and receiver logic};
+\end{tikzpicture}%
+}
+\caption{Version 7 architecture: struct-based packetization with unified sender and receiver parsing flow.
+}
+\label{fig:v7-architecture}
+\end{figure}
+
+\clearpage
+\section{Version Family C: TCP-like Framing and Pipelining (v8--v10)}
+This family introduces transport semantics closer to TCP.
+
+\subsection{Version 8: Handshake, Flags, and Connection Lifecycle}
+Level 8 includes:
+\begin{enumerate}
+    \item SYN for start,
+    \item ACK for acknowledgement,
+    \item DATA for payload,
+    \item FIN for graceful close.
+\end{enumerate}
+
+The sender and receiver perform a simplified three-way handshake and teardown.
+Checksum is also introduced at this level for stronger integrity checks.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.6cm, minimum height=1.1cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.6cm, minimum height=1.1cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.0cm, minimum height=1.0cm, align=center, fill=orange!10, draw=orange!70!black},
+    ctrl/.style={-{Latex[length=3.6mm]}, line width=1.0pt, draw=black!80},
+    syn/.style={-{Latex[length=3.6mm]}, line width=1.25pt, draw=blue!70!black},
+    ack/.style={-{Latex[length=3.6mm]}, line width=1.25pt, draw=green!55!black},
+    data/.style={-{Latex[length=3.6mm]}, line width=1.25pt, draw=red!70!black},
+    fin/.style={-{Latex[length=3.6mm]}, line width=1.25pt, draw=purple!70!black}
+]
+\node[sender] (shs) at (-2.4,2.1) {Sender Connection State\\(CLOSED to SYN-SENT to ESTABLISHED to FIN-WAIT)};
+\node[sender] (sfrm) at (-2.4,0.5) {Sender Frame Builder\\(SYN/ACK/DATA/FIN flags + checksum)};
+\node[sender] (snet) at (-2.4,-1.1) {Sender Transport Output\\(flagged frames to network)};
+
+\node[channel] (net) at (8.1,-1.1) {Transport Channel for Flagged Frames};
+
+\node[receiver] (rnet) at (18.4,-1.1) {Receiver Transport Input\\(accept flagged frames)};
+\node[receiver] (rparse) at (18.4,0.5) {Receiver Parser + Checksum Verify\\(drop corrupted, accept valid)};
+\node[receiver] (rstate) at (18.4,2.1) {Receiver Connection State\\(LISTEN to ESTABLISHED to CLOSE-WAIT)};
+
+\draw[ctrl] (shs) -- (sfrm);
+\draw[ctrl] (sfrm) -- (snet);
+\draw[ctrl] (rnet) -- (rparse);
+\draw[ctrl] (rparse) -- (rstate);
+
+\draw[syn] (snet.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{SYN} (net.west);
+\draw[syn] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{SYN} (rnet.west);
+
+\draw[ack] (rstate.north west) -- ++(-4.0,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{SYN ACK / ACK} (sfrm.north east);
+
+\draw[data] (snet.south east) -- (2.6,-2.0) -- node[pos=0.50, below, fill=white, inner sep=1pt]{DATA + checksum} (13.4,-2.0) -- (rnet.south west);
+
+\draw[fin] (sfrm.east) -- ++(2.4,0) |- node[pos=0.62, above, fill=white, inner sep=1pt]{FIN teardown} (rstate.west);
+
+\node[align=center] at (8.1,-3.35) {Version 8 adds handshake lifecycle (SYN, ACK, FIN) and per-frame checksum verification\\This is the first step toward TCP-like connection semantics in the project};
+\end{tikzpicture}%
+}
+\caption{Version 8 architecture: handshake flags, lifecycle control, and checksum-protected data flow.
+}
+\label{fig:v8-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 9: Sliding Window (Go-Back-N Style)}
+Version 9 increases efficiency with a sender window (typical size 4). Sender
+may transmit multiple packets before waiting for ACKs. On timeout, packets from
+base are retransmitted. Receiver sends cumulative-like ACK behavior based on
+expected sequence.
+
+This level marks a major throughput jump because waiting time is amortized.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.8cm, minimum height=1.15cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.8cm, minimum height=1.15cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.4cm, minimum height=0.95cm, align=center, fill=orange!10, draw=orange!70!black},
+    ctrl/.style={-{Latex[length=3.4mm]}, line width=1.0pt, draw=black!80},
+    data/.style={-{Latex[length=3.4mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.4mm]}, line width=1.2pt, draw=green!55!black},
+    retry/.style={-{Latex[length=3.4mm]}, line width=1.2pt, draw=purple!70!black}
+]
+\node[sender] (swin) at (-2.2,2.0) {Sender Window Controller\\(window size = 4, base and next sequence)};
+\node[sender] (squeue) at (-2.2,0.4) {Pipeline Send Queue\\(seq i, i+1, i+2, i+3 in flight)};
+\node[sender] (stimer) at (-2.2,-1.2) {Timeout and Retransmit Logic\\(on timeout, resend from base)};
+
+\node[channel] (net) at (8.0,-1.2) {Unreliable Network Channel};
+
+\node[receiver] (rbuf) at (18.0,-1.2) {Receiver Input + Ordering Check\\(accept expected, discard out-of-window)};
+\node[receiver] (rack) at (18.0,0.4) {Cumulative ACK Generator\\(ACK highest contiguous sequence)};
+\node[receiver] (rapp) at (18.0,2.0) {In-order Delivery Layer\\(release contiguous data to application)};
+
+\draw[ctrl] (swin) -- (squeue);
+\draw[ctrl] (squeue) -- (stimer);
+\draw[ctrl] (rbuf) -- (rack);
+\draw[ctrl] (rack) -- (rapp);
+
+\draw[data] (squeue.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{windowed DATA packets} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{multiple in-flight frames} (rbuf.west);
+
+\draw[ack] (rack.north west) -- ++(-4.0,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{cumulative ACK} (swin.north east);
+
+\draw[retry] (stimer.south east) -- (2.0,-2.1) -- node[pos=0.48, below, fill=white, inner sep=1pt]{timeout retransmit from base} (13.0,-2.1) -- (rbuf.south west);
+
+\node[align=center] at (8.0,-3.35) {Version 9 pipelines multiple packets before ACK wait, improving throughput\\Cumulative ACK plus timeout-from-base retransmission defines Go-Back-N behavior};
+\end{tikzpicture}%
+}
+\caption{Version 9 architecture: sliding window pipelining with cumulative ACK and timeout-based retransmission.
+}
+\label{fig:v9-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 10: Chunk-Based Payloads}
+Version 10 increases data per packet by introducing \texttt{CHUNK\_SIZE = 8}
+bytes. Benefits:
+
+\begin{enumerate}
+    \item fewer packets for same message length,
+    \item less per-packet header overhead,
+    \item better throughput for moderate messages.
+\end{enumerate}
+
+Receiver logic starts supporting in-window buffering, enabling transition to
+selective-repeat style delivery in the next family.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.8cm, minimum height=1.05cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.8cm, minimum height=1.05cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.4cm, minimum height=0.95cm, align=center, fill=orange!10, draw=orange!70!black},
+    ctrl/.style={-{Latex[length=3.4mm]}, line width=1.0pt, draw=black!80},
+    data/.style={-{Latex[length=3.4mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.4mm]}, line width=1.2pt, draw=green!55!black},
+    flow2/.style={-{Latex[length=3.4mm]}, line width=1.2pt, draw=purple!70!black}
+]
+\node[sender] (schunk) at (-3.0,2.6) {Sender Chunk Builder\\(split payload into 8-byte chunks)};
+\node[sender] (spkt) at (-3.0,0.5) {Chunk Packetizer\\(seq + chunk + checksum)};
+\node[sender] (sout) at (-3.0,-1.6) {Pipeline Output\\(fewer, larger packets for same message)};
+
+\node[channel] (net) at (8.0,-1.6) {Transport Channel for Chunk Packets};
+
+\node[receiver] (rin) at (19.0,-1.6) {Chunk Packet Receiver\\(validate and accept chunk packets)};
+\node[receiver] (rbuf) at (19.0,0.5) {In-Window Buffer Support\\(store out-of-order chunks)};
+\node[receiver] (rasm) at (19.0,2.6) {Chunk Reassembly Layer\\(reconstruct full message in order)};
+
+\draw[ctrl] (schunk) -- (spkt);
+\draw[ctrl] (spkt) -- (sout);
+\draw[ctrl] (rin) -- (rbuf);
+\draw[ctrl] (rbuf) -- (rasm);
+
+\draw[data] (sout.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{chunk packets\\(8-byte payload units)} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{reduced packet count\\higher payload efficiency} (rin.west);
+
+\draw[ack] (rbuf.north west) -- ++(-4.0,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{window ACK progress} (schunk.north east);
+
+\draw[flow2] (rbuf.south west) -- ++(-1.4,0) |- node[pos=0.06, xshift=-98mm, above, align=center, fill=white, inner sep=1pt]{buffer chunks then\\in-order reassembly} (spkt.south east);
+
+\node[align=center] at (8.3,-4.05) {Version 10 increases per-packet payload using fixed-size chunks, reducing header overhead\\Receiver buffering prepares transition to selective-repeat style delivery};
+\end{tikzpicture}%
+}
+\caption{Version 10 architecture: chunk-based payload transfer with in-window buffering and ordered reassembly.
+}
+\label{fig:v10-architecture}
+\end{figure}
+
+\clearpage
+\section{Version Family D: Selective Repeat and Adaptive Control (v11--v14)}
+Family D contains the most advanced protocol behavior in this project.
+
+\subsection{Version 11: Selective-Repeat-Like Buffering}
+Receiver stores out-of-order chunks in buffers and delivers data in order when
+missing sequence arrives. This avoids unnecessary retransmission of already
+received data and improves behavior under reordering.
+
+Key receiver structures include:
+\begin{enumerate}
+    \item packet-received flags,
+    \item chunk data buffer,
+    \item chunk length metadata,
+    \item expected sequence tracker.
+\end{enumerate}
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.9cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.9cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.5cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    ctrl/.style={-{Latex[length=3.5mm]}, line width=1.0pt, draw=black!80},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.25pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.25pt, draw=green!55!black},
+    buf/.style={-{Latex[length=3.5mm]}, line width=1.25pt, draw=purple!70!black}
+]
+\node[sender] (swnd) at (-2.4,2.1) {Sender Window State\\(base, next sequence, outstanding set)};
+\node[sender] (ssend) at (-2.4,0.4) {Selective Retransmit Sender\\(retransmit only missing sequences)};
+\node[sender] (sout) at (-2.4,-1.3) {Packet Output Stream\\(in-order and out-of-order arrivals possible)};
+
+\node[channel] (net) at (8.0,-1.3) {Unreliable Network with Reordering};
+
+\node[receiver] (rin) at (18.4,-1.3) {Receiver Packet Intake\\(seq check against expected tracker)};
+\node[receiver] (rbuf) at (18.4,0.4) {Out-of-Order Buffer\\(flags, chunk data, length metadata)};
+\node[receiver] (rdel) at (18.4,2.1) {In-Order Delivery\\(release contiguous chunks only)};
+
+\draw[ctrl] (swnd) -- (ssend);
+\draw[ctrl] (ssend) -- (sout);
+\draw[ctrl] (rin) -- (rbuf);
+\draw[ctrl] (rbuf) -- (rdel);
+
+\draw[data] (sout.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{DATA packets\\possibly out of order} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{arrivals with gaps\\and reordering} (rin.west);
+
+\draw[ack] (rbuf.north west) -- ++(-4.4,0) |- node[pos=0.33, left, align=center, fill=white, inner sep=1pt]{ACK / selective hint\\for missing sequence} (swnd.north east);
+
+\draw[buf] (rbuf.south west) -- ++(-1.6,0) |- node[pos=0.10, xshift=-92mm, above, align=center, fill=white, inner sep=1pt]{buffer out-of-order chunks\\deliver when gap is filled} (ssend.south east);
+
+\node[align=center] at (8.0,-3.45) {Version 11 stores out-of-order chunks and avoids unnecessary retransmission\\Receiver-side tracking enables selective-repeat-like reliability behavior};
+\end{tikzpicture}%
+}
+\caption{Version 11 architecture: selective-repeat-like buffering with out-of-order storage and in-order delivery.
+}
+\label{fig:v11-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 12: Adaptive RTO Estimation}
+Version 12 introduces RTT sampling and adaptive RTO calculation. Fixed timeout
+works poorly in variable-delay conditions. Adaptive timeout adjusts retransmit
+threshold dynamically and reduces both premature retransmits and long idle
+waits.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=5.9cm, minimum height=1.25cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=5.9cm, minimum height=1.25cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.7cm, minimum height=1.1cm, align=center, fill=orange!10, draw=orange!70!black},
+    ctrl/.style={-{Latex[length=3.5mm]}, line width=1.0pt, draw=black!80},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.25pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.25pt, draw=green!55!black},
+    rto/.style={-{Latex[length=3.5mm]}, line width=1.25pt, draw=purple!70!black}
+]
+\node[sender] (srtt) at (-2.4,2.8) {RTT Sampler and Estimator\\(sampleRTT, estimatedRTT, deviation)};
+\node[sender] (srto) at (-2.4,0.5) {Adaptive RTO Controller\\(RTO updated dynamically per ACK)};
+\node[sender] (stx) at (-2.4,-1.8) {Sender Transmission Engine\\(start timer, send, retry on timeout)};
+
+\node[channel] (net) at (8.0,-1.8) {Variable-Delay Network Channel};
+
+\node[receiver] (rrx) at (18.4,-1.8) {Receiver Packet Intake\\(validate packet and sequence)};
+\node[receiver] (rack) at (18.4,0.5) {ACK Generator with Timing Signal\\(return ACK with receive timing)};
+\node[receiver] (rapp) at (18.4,2.8) {Delivery Layer\\(stable throughput under delay variation)};
+
+\draw[ctrl] (srtt) -- (srto);
+\draw[ctrl] (srto) -- (stx);
+\draw[ctrl] (rrx) -- (rack);
+\draw[ctrl] (rack) -- (rapp);
+
+\draw[data] (stx.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{\small DATA with adaptive timer\\instead of fixed timeout} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{variable-delay delivery\\(jitter and queueing)} (rrx.west);
+
+\draw[ack] (rack.north west) -- ++(-4.6,0) |- node[pos=0.32, left, align=center, fill=white, inner sep=1pt]{ACK plus RTT feedback\\for timer update} (srtt.north east);
+
+\draw[rto] (srto.south east) -- ++(2.0,0) |- node[pos=0.46, below, yshift=-2mm, align=center, fill=white, inner sep=1pt]{adaptive RTO update\\avoid early and late retries} (rrx.south west);
+
+\node[align=center] at (8.0,-4.45) {Version 12 adapts timeout from observed RTT behavior under changing delay\\This reduces premature retransmits and long idle waiting periods};
+\end{tikzpicture}%
+}
+\caption{Version 12 architecture: RTT sampling with adaptive RTO control for variable-delay conditions.
+}
+\label{fig:v12-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 13: Congestion Window and Slow Start}
+This level introduces congestion control variables:
+\begin{enumerate}
+    \item \texttt{cwnd} (congestion window),
+    \item \texttt{ssthresh} (slow start threshold).
+\end{enumerate}
+
+Behavior follows a simplified policy:
+\begin{enumerate}
+    \item grow quickly in slow start,
+    \item grow gradually in congestion avoidance,
+    \item reduce sending rate after loss indication.
+\end{enumerate}
+
+This improves fairness and stability compared to aggressive fixed-window
+sending.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.35cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.35cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=5.0cm, minimum height=1.2cm, align=center, fill=orange!10, draw=orange!70!black},
+    ctrl/.style={-{Latex[length=3.5mm]}, line width=1.0pt, draw=black!80},
+    data/.style={-{Latex[length=3.7mm]}, line width=1.35pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.7mm]}, line width=1.35pt, draw=green!55!black},
+    cong/.style={-{Latex[length=3.7mm]}, line width=1.35pt, draw=purple!70!black}
+]
+\node[sender] (scwnd) at (-3.2,3.0) {Congestion Controller\\(cwnd and ssthresh state)};
+\node[sender] (sgrow) at (-3.2,0.2) {Growth Policy Engine\\(slow start then congestion avoidance)};
+\node[sender] (stx) at (-3.2,-2.6) {Transmission Pacer\\(send rate derived from cwnd)};
+
+\node[channel] (net) at (8.8,-2.6) {Bottleneck-Affected Network Path};
+
+\node[receiver] (rrx) at (20.8,-2.6) {Receiver Intake\\(normal ACK stream under healthy flow)};
+\node[receiver] (rack) at (20.8,0.2) {ACK Feedback Source\\(acknowledgement clocking)};
+\node[receiver] (robs) at (20.8,3.0) {Loss and Delay Observation\\(congestion signal emergence)};
+
+\draw[ctrl] (scwnd) -- (sgrow);
+\draw[ctrl] (sgrow) -- (stx);
+\draw[ctrl] (rrx) -- (rack);
+\draw[ctrl] (rack) -- (robs);
+
+\draw[data] (stx.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{window-controlled DATA flow\\rate scales with cwnd} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{throughput to receiver\\under queue and delay pressure} (rrx.west);
+
+\draw[ack] (rack.north west) -- ++(-6.4,0) |- node[pos=0.34, left, align=center, fill=white, inner sep=1pt]{ACK clocking updates\\growth phase and pacing} (scwnd.north east);
+
+\draw[cong] (robs.south west) -- ++(-2.8,0) |- node[pos=0.48, above, align=center, fill=white, inner sep=1pt]{loss indication cut rate\\adjust ssthresh and cwnd} (sgrow.south east);
+
+\node[align=center] at (8.8,-5.35) {Version 13 introduces congestion-aware growth and backoff using cwnd and ssthresh\\Fast growth in slow start transitions to stable additive growth under congestion avoidance};
+\end{tikzpicture}%
+}
+\caption{Version 13 architecture: congestion window growth, ACK clocking, and loss-triggered rate reduction.
+}
+\label{fig:v13-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 14: Fast Retransmit and Fast Recovery}
+Version 14 is the most complete implementation within Family D.
+The project then continues through versions 15--24, which extend this baseline
+with more advanced adaptive and Reno-like refinements.
+Enhancements include:
+
+\begin{enumerate}
+    \item duplicate ACK counting,
+    \item triple-duplicate-ACK loss inference,
+    \item fast retransmission without waiting for timeout,
+    \item temporary fast-recovery window inflation and controlled deflation.
+\end{enumerate}
+
+This behavior closely resembles a learning-scale version of TCP Reno.
+
+\vspace{1.5\baselineskip}
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.1cm, align=center, fill=orange!10, draw=orange!70!black},
+    ctrl/.style={-{Latex[length=3.6mm]}, line width=1.0pt, draw=black!80},
+    data/.style={-{Latex[length=3.8mm]}, line width=1.35pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.8mm]}, line width=1.35pt, draw=green!55!black},
+    fast/.style={-{Latex[length=3.8mm]}, line width=1.35pt, draw=purple!70!black}
+]
+\node[sender] (sdup) at (-4.2,3.6) {Duplicate ACK Tracker\\(count duplicate ACKs and trigger threshold)};
+\node[sender] (sfr) at (-4.2,0.4) {Fast Retransmit and Recovery Logic\\(triple-duplicate ACK -> immediate retransmit)};
+\node[sender] (stx) at (-4.2,-2.8) {Sender Transmission Engine\\(recovery window inflate then controlled deflate)};
+
+\node[channel] (net) at (9.2,-2.8) {Loss-Prone Network Path};
+
+\node[receiver] (rrx) at (22.2,-2.8) {Receiver Intake\\(in-order and out-of-order packet observation)};
+\node[receiver] (rack) at (22.2,0.4) {ACK Stream Generator\\(duplicate ACKs on missing sequence)};
+\node[receiver] (robs) at (22.2,3.6) {Loss Signal Source\\(duplicate ACK pattern visible to sender)};
+
+\draw[ctrl] (sdup) -- (sfr);
+\draw[ctrl] (sfr) -- (stx);
+\draw[ctrl] (rrx) -- (rack);
+\draw[ctrl] (rack) -- (robs);
+
+\draw[data] (stx.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{DATA flow with recovery-aware pacing\\avoid waiting for timeout on loss} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{delivery stream with occasional loss\\receiver observes missing sequence} (rrx.west);
+
+\draw[ack] (rack.north west) -- ++(-7.2,0) |- node[pos=0.34, left, align=center, fill=white, inner sep=1pt]{duplicate ACK stream\\drives sender loss inference} (sdup.north east);
+
+\draw[fast] (robs.south west) -- ++(-3.2,0) |- node[pos=0.50, above, align=center, fill=white, inner sep=1pt]{triple-duplicate ACK to fast retransmit\\fast recovery inflate then deflate cwnd} (sfr.south east);
+
+\node[align=center] at (9.2,-6.1) {Version 14 adds fast retransmit and fast recovery to react before timeout\\This improves responsiveness while maintaining controlled congestion behavior};
+\end{tikzpicture}%
+}
+\caption{Version 14 architecture: duplicate-ACK loss inference with fast retransmit and fast recovery control.
+}
+\label{fig:v14-architecture}
+\end{figure}
+
+\clearpage
+\section{Version Family E: Adaptive and Reno-Like Extensions (v15--v24)}
+The later versions extend the same transport story into a more advanced and
+educational TCP-like space. This family focuses on RTT-sensitive timeout
+refinement, timestamp-oriented state awareness, SACK-like reasoning,
+congestion-avoidance behavior, and improved recovery handling. The visualizer
+also uses these later versions to show how the FSM and UML timeline can be used
+to explain protocol decisions step by step.
+
+The primary design inspiration for this family comes from the RFCs and books
+that describe TCP evolution in practice. In particular, RFC 6298 explains the
+retransmission timer, RFC 5681 covers congestion control behavior, RFC 2018
+describes selective acknowledgment options, RFC 7323 covers TCP extensions for
+high performance, and RFC 793 provides the core TCP model. The implementation
+style is also informed by Stevens, Kurose and Ross, and Tanenbaum and
+Wetherall, because those texts help connect protocol theory with the concrete
+sender and receiver code structure used in the project \cite{rfc6298,rfc5681,rfc2018,rfc7323,rfc793,stevens_tcpip,kurose_ross,tanenbaum_wetherall}.
+
+This family is especially valuable in the report because it shows the point at
+which the learning project becomes visually and conceptually close to real TCP
+thinking, while still remaining simple enough for students to trace manually.
+
+\clearpage
+\subsection{Version 15: RTT-Smoothed Timeout Refinement}
+Version 15 stabilizes retransmission timing using smoothed RTT and deviation
+tracking. Instead of relying on coarse timeout behavior, this version updates
+RTO with a more disciplined estimator so sender retries are less noisy.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.25cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.25cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.1cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    ctrl/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.0,2.1) {RTT Sampler\\(sampleRTT and ACK timing)};
+\node[sender] (s2) at (-3.0,-0.2) {RTO Updater\\(smoothed timer calculation)};
+\node[sender] (s3) at (-3.0,-2.5) {Send/Retry Engine\\(retry threshold from adaptive RTO)};
+
+\node[channel] (net) at (8.0,-2.5) {Variable-Delay Path};
+
+\node[receiver] (r1) at (19.0,-2.5) {Receiver Delivery Pipeline};
+\node[receiver] (r2) at (19.0,-0.2) {ACK Timing Feedback};
+\node[receiver] (r3) at (19.0,2.1) {Stable ACK Clock Source};
+
+\draw[ctrl] (s1) -- (s2);
+\draw[ctrl] (s2) -- (s3);
+\draw[ctrl] (r1) -- (r2);
+\draw[ctrl] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{timed DATA transmission} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{delay-affected arrival stream} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.0,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{ACK timing} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 15 architecture: smoothed RTT-driven retransmission timeout refinement.}
+\label{fig:v15-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 16: Adaptive Window Discipline}
+Version 16 connects timeout behavior with sender pacing and window discipline.
+When timing uncertainty grows, send aggressiveness is reduced. When ACK rhythm
+stabilizes, throughput is allowed to grow safely.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    flow/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.2,2.0) {Adaptive Sender Window\\(base, next, pacing gate)};
+\node[sender] (s2) at (-3.2,-0.3) {Timeout-Aware Rate Control};
+\node[sender] (s3) at (-3.2,-2.6) {Windowed Data Output};
+
+\node[channel] (net) at (8.2,-2.6) {Loss and Delay Channel};
+
+\node[receiver] (r1) at (19.6,-2.6) {Packet Intake and Ordering};
+\node[receiver] (r2) at (19.6,-0.3) {ACK and Expected-Seq State};
+\node[receiver] (r3) at (19.6,2.0) {Flow Stability Feedback};
+
+\draw[flow] (s1) -- (s2);
+\draw[flow] (s2) -- (s3);
+\draw[flow] (r1) -- (r2);
+\draw[flow] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{adaptive window DATA} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{receiver in-order processing} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.6,0) |- node[pos=0.36, left, fill=white, inner sep=1pt]{ACK rhythm and gap hints} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 16 architecture: timeout-aware adaptive window control.}
+\label{fig:v16-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 17: Timestamp Option Integration}
+Version 17 introduces timestamp-style metadata in packet exchange so sender can
+infer timing more directly and avoid ambiguous retransmission decisions.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.7cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    opt/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.0,1.8) {Timestamp Inserter\\(ts\_val in outgoing packet)};
+\node[sender] (s2) at (-3.0,-0.4) {RTT Estimator with TS Echo};
+\node[sender] (s3) at (-3.0,-2.6) {Retransmit Decision Logic};
+
+\node[channel] (net) at (8.0,-2.6) {Transport Path};
+
+\node[receiver] (r1) at (19.0,-2.6) {Timestamp Parser};
+\node[receiver] (r2) at (19.0,-0.4) {ACK Builder with ts\_ecr};
+\node[receiver] (r3) at (19.0,1.8) {Option-Aware Receiver State};
+
+\draw[opt] (s1) -- (s2);
+\draw[opt] (s2) -- (s3);
+\draw[opt] (r1) -- (r2);
+\draw[opt] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{DATA + timestamp option} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{option-aware reception} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.0,0) |- node[pos=0.35, left, fill=white, inner sep=1pt]{ACK with ts echo} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 17 architecture: timestamp insertion and echo-aware feedback loop.}
+\label{fig:v17-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 18: SACK-Inspired Receiver Reporting}
+Version 18 introduces selective acknowledgment style hints so sender can see
+which blocks arrived beyond a gap. This reduces unnecessary retransmission of
+already received data.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    sack/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.0,2.0) {Gap Map Tracker\\(missing sequence focus)};
+\node[sender] (s2) at (-3.0,-0.3) {Selective Retransmit Planner};
+\node[sender] (s3) at (-3.0,-2.6) {Loss-Targeted Packet Output};
+
+\node[channel] (net) at (8.0,-2.6) {Reordering and Loss Channel};
+
+\node[receiver] (r1) at (19.0,-2.6) {Out-of-Order Buffer State};
+\node[receiver] (r2) at (19.0,-0.3) {SACK Block Builder};
+\node[receiver] (r3) at (19.0,2.0) {ACK + Block Range Feedback};
+
+\draw[sack] (s1) -- (s2);
+\draw[sack] (s2) -- (s3);
+\draw[sack] (r1) -- (r2);
+\draw[sack] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{windowed DATA stream} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{buffered arrivals with gaps} (r1.west);
+\draw[ack] (r3.west) -- ++(-5.2,0) |- node[pos=0.36, left, fill=white, inner sep=1pt]{ACK + SACK-like block hints} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 18 architecture: SACK-inspired gap reporting and selective resend planning.}
+\label{fig:v18-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 19: Congestion-Avoidance Stabilization}
+Version 19 strengthens congestion-avoidance transitions. The sender responds to
+loss and delay pressure with smoother cwnd behavior, reducing oscillation while
+keeping reasonable throughput.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.1cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.1cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    cong/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.2,2.0) {cwnd/ssthresh Controller};
+\node[sender] (s2) at (-3.2,-0.3) {Slow-Start to CA Transition Logic};
+\node[sender] (s3) at (-3.2,-2.6) {Congestion-Aware Send Pacer};
+
+\node[channel] (net) at (8.2,-2.6) {Bottleneck-Sensitive Link};
+
+\node[receiver] (r1) at (19.6,-2.6) {Data Receiver Pipeline};
+\node[receiver] (r2) at (19.6,-0.3) {ACK Clock and DupACK Signal};
+\node[receiver] (r3) at (19.6,2.0) {Congestion Signal Visibility};
+
+\draw[cong] (s1) -- (s2);
+\draw[cong] (s2) -- (s3);
+\draw[cong] (r1) -- (r2);
+\draw[cong] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{rate-shaped DATA} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{queue-influenced delivery} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.8,0) |- node[pos=0.35, left, fill=white, inner sep=1pt]{ACK feedback and DupACK events} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 19 architecture: stabilized congestion-avoidance behavior with ACK-clocked feedback.}
+\label{fig:v19-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 20: Loss-Recovery Coupled with Option Feedback}
+Version 20 combines fast recovery behavior with richer feedback from timestamp
+and selective-ack style information. Recovery targets missing data more
+precisely and returns to normal transmission with better control.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.9cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    rec/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.3,2.0) {Recovery Trigger Logic\\(DupACK and option hints)};
+\node[sender] (s2) at (-3.3,-0.3) {Selective Fast-Retransmit Unit};
+\node[sender] (s3) at (-3.3,-2.6) {Controlled Exit to Normal Flow};
+
+\node[channel] (net) at (8.3,-2.6) {Mixed Loss/Reorder Path};
+
+\node[receiver] (r1) at (19.9,-2.6) {Gap-Aware Receive Buffer};
+\node[receiver] (r2) at (19.9,-0.3) {ACK + TS + Block Feedback};
+\node[receiver] (r3) at (19.9,2.0) {Recovery Guidance Signal};
+
+\draw[rec] (s1) -- (s2);
+\draw[rec] (s2) -- (s3);
+\draw[rec] (r1) -- (r2);
+\draw[rec] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{recovery-phase DATA stream} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{gap-observing receiver path} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.9,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{rich ACK feedback} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 20 architecture: fast recovery guided by richer feedback signals.}
+\label{fig:v20-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 21: Sender State Consolidation}
+Version 21 consolidates sender logic for timers, congestion state, option
+tracking, and retransmission queues so control decisions remain consistent
+across difficult traffic patterns.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.1cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.1cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    ctrl/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.2,2.0) {Unified Sender Control State};
+\node[sender] (s2) at (-3.2,-0.3) {Timer + Congestion + Option Arbiter};
+\node[sender] (s3) at (-3.2,-2.6) {Consistent Tx/Rtx Queue Manager};
+
+\node[channel] (net) at (8.2,-2.6) {Transport Channel};
+
+\node[receiver] (r1) at (19.6,-2.6) {Ordered Delivery Core};
+\node[receiver] (r2) at (19.6,-0.3) {ACK Signal Generator};
+\node[receiver] (r3) at (19.6,2.0) {State Feedback Source};
+
+\draw[ctrl] (s1) -- (s2);
+\draw[ctrl] (s2) -- (s3);
+\draw[ctrl] (r1) -- (r2);
+\draw[ctrl] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{state-consistent DATA stream} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{receiver acceptance pipeline} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.7,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{ACK and state feedback} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 21 architecture: consolidated sender control for stable decision flow.}
+\label{fig:v21-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 22: Receiver Reassembly and Delivery Hardening}
+Version 22 strengthens the receiver side by improving buffering, gap filling,
+and reassembly commit rules. This reduces edge-case delivery mistakes when
+packets arrive late, duplicated, or out of order.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.0cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    rec/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.0,2.0) {Sender Window Output};
+\node[sender] (s2) at (-3.0,-0.3) {Selective Resend Support};
+\node[sender] (s3) at (-3.0,-2.6) {Delivery-Oriented Packet Stream};
+
+\node[channel] (net) at (8.0,-2.6) {Uncertain Arrival Channel};
+
+\node[receiver] (r1) at (19.0,-2.6) {Reassembly Buffer Matrix};
+\node[receiver] (r2) at (19.0,-0.3) {Gap Fill and Contiguous Commit Logic};
+\node[receiver] (r3) at (19.0,2.0) {Reliable App Delivery Stage};
+
+\draw[rec] (s1) -- (s2);
+\draw[rec] (s2) -- (s3);
+\draw[rec] (r1) -- (r2);
+\draw[rec] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{windowed DATA packets} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{out-of-order chunk arrivals} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.0,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{ACK for committed ranges} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 22 architecture: hardened receiver reassembly and contiguous delivery control.}
+\label{fig:v22-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 23: End-to-End Robustness Tuning}
+Version 23 tunes interaction among timer control, congestion response,
+selective retransmission, and receiver commit rules. The focus is robust
+behavior under mixed delay, reordering, and burst loss.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.2cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.2cm, minimum height=1.2cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=4.8cm, minimum height=1.05cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.5mm]}, line width=1.2pt, draw=green!55!black},
+    tune/.style={-{Latex[length=3.5mm]}, line width=1.1pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.2,2.0) {Integrated Robustness Policy};
+\node[sender] (s2) at (-3.2,-0.3) {Timer/CWND/Resend Coordinator};
+\node[sender] (s3) at (-3.2,-2.6) {Resilient Packet Scheduler};
+
+\node[channel] (net) at (8.2,-2.6) {Burst-Loss and Reorder Channel};
+
+\node[receiver] (r1) at (19.6,-2.6) {Robust Buffer and Delivery Core};
+\node[receiver] (r2) at (19.6,-0.3) {Feedback with Gap/Timing Context};
+\node[receiver] (r3) at (19.6,2.0) {Application-Safe Commit Stage};
+
+\draw[tune] (s1) -- (s2);
+\draw[tune] (s2) -- (s3);
+\draw[tune] (r1) -- (r2);
+\draw[tune] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{robustness-tuned DATA flow} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, fill=white, inner sep=1pt]{mixed-failure delivery path} (r1.west);
+\draw[ack] (r2.north west) -- ++(-5.8,0) |- node[pos=0.35, left, fill=white, inner sep=1pt]{context-rich ACK feedback} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 23 architecture: coordinated end-to-end robustness tuning under mixed failures.}
+\label{fig:v23-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Version 24: Final Integrated Transport Stage}
+Version 24 is the final integrated stage of the project. It combines the full
+set of educational transport features: adaptive timing, congestion-aware
+windows, timestamp-aware feedback, SACK-inspired loss hints, and controlled
+recovery behavior.
+
+\begin{figure}[h!]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\normalsize,
+    sender/.style={draw, rounded corners=3pt, thick, minimum width=6.3cm, minimum height=1.25cm, align=center, fill=blue!10, draw=blue!60!black},
+    receiver/.style={draw, rounded corners=3pt, thick, minimum width=6.3cm, minimum height=1.25cm, align=center, fill=teal!10, draw=teal!60!black},
+    channel/.style={draw, rounded corners=3pt, thick, minimum width=5.0cm, minimum height=1.1cm, align=center, fill=orange!10, draw=orange!70!black},
+    data/.style={-{Latex[length=3.7mm]}, line width=1.25pt, draw=red!70!black},
+    ack/.style={-{Latex[length=3.7mm]}, line width=1.25pt, draw=green!55!black},
+    all/.style={-{Latex[length=3.7mm]}, line width=1.15pt, draw=purple!70!black}
+]
+\node[sender] (s1) at (-3.4,2.2) {Integrated Sender Brain\\(RTO + cwnd + recovery + option parsing)};
+\node[sender] (s2) at (-3.4,-0.2) {Selective and Fast Recovery Engine};
+\node[sender] (s3) at (-3.4,-2.6) {Stable High-Utility Packet Output};
+
+\node[channel] (net) at (8.4,-2.6) {Full Experimental Transport Channel};
+
+\node[receiver] (r1) at (20.2,-2.6) {Gap-Tolerant Receive and Reassembly};
+\node[receiver] (r2) at (20.2,-0.2) {ACK + TS + SACK-Style Feedback Layer};
+\node[receiver] (r3) at (20.2,2.2) {Reliable In-Order Delivery to App Layer};
+
+\draw[all] (s1) -- (s2);
+\draw[all] (s2) -- (s3);
+\draw[all] (r1) -- (r2);
+\draw[all] (r2) -- (r3);
+
+\draw[data] (s3.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{integrated DATA flow with\\adaptive transport control} (net.west);
+\draw[data] (net.east) -- node[pos=0.5, above, align=center, fill=white, inner sep=1pt]{robust receiver intake with\\ordered reconstruction} (r1.west);
+\draw[ack] (r2.north west) -- ++(-6.0,0) |- node[pos=0.34, left, align=center, fill=white, inner sep=1pt]{combined ACK, timing,\\and loss-hint feedback} (s1.north east);
+\end{tikzpicture}%
+}
+\caption{Version 24 architecture: final integrated transport design across reliability, timing, and recovery.}
+\label{fig:v24-architecture}
+\end{figure}
+
+\clearpage
+\subsection{Family E Summary}
+Versions 15--24 complete the transition from a staged classroom transport model
+to an integrated TCP-inspired system. The sequence shows how timing, selective
+feedback, congestion awareness, and structured recovery can be layered without
+losing traceability for learners.
+
+\section{Chapter Summary}
+This chapter explained how the full project evolves from a basic UDP demo to a
+rich transport protocol laboratory. The next chapter formalizes the main
+algorithms with equations and analysis so that implementation behavior can be
+understood quantitatively.understood quantitatively. Chapter 4 then presents detailed measurements,
+comparison tables, and visual timelines to complete the educational narrative.
