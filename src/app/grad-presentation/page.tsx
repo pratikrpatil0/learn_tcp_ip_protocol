@@ -305,14 +305,14 @@ export default function GradPresentationPage() {
           <div className="grid grid-cols-1 gap-6 mt-6">
             <div className="border-l-4 border-indigo-500 pl-6 py-4 bg-indigo-900/20 rounded-r-lg">
               <h4 className="text-xl font-semibold text-indigo-200 mb-2">
-                In-Depth Focus: 5 Core Versions
+                In-Depth Focus: 5 Selected Demo Versions
               </h4>
               <p className="text-slate-400 font-light leading-relaxed">
-                I will dive intimately into{" "}
-                <strong>5 selected core versions</strong>. We will look closely
-                at the textbook theory, the logical problem, and precisely how I
-                coded the solution in C, showing the systematic evolution from a
-                raw UDP socket up to selective repeat and congestion control.
+                I will demonstrate the <strong>5-files demo</strong> using the
+                same interactive visualizer, restricted to versions{" "}
+                <strong>0, 5, 10, 15, and 24</strong>. We will walk through the
+                textbook theory, the C implementation, and the FSM and UML
+                timeline together in one consistent view.
               </p>
             </div>
           </div>
@@ -466,39 +466,25 @@ export default function GradPresentationPage() {
               <span className="bg-amber-500/20 px-2 py-1 rounded text-sm">
                 5
               </span>{" "}
-              Crucial Engineering Steps
+              Launch Point
             </h3>
             <ol className="text-slate-300 leading-relaxed font-mono space-y-4 list-decimal pl-6 text-sm tracking-wide">
               <li>
                 <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  socket(AF_INET, SOCK_DGRAM...)
+                  Interactive Visualizer
                 </span>
                 <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Instantiates the raw UDP socket pipeline.
+                  Open the same UI engine used in the simulator, but filtered to
+                  the five demo versions.
                 </span>
               </li>
               <li>
                 <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  bind(sockfd, &servaddr...)
+                  Five Versions Only
                 </span>
                 <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Locks receiver process to a listening port.
-                </span>
-              </li>
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  sendto(sockfd, buffer...)
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Sender fires datagram blindly into network.
-                </span>
-              </li>
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  recvfrom(sockfd, buffer...)
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Receiver waits/blocks until kernel delivers data.
+                  The demo focuses on versions 0, 5, 10, 15, and 24 so the
+                  progression stays clear during presentation.
                 </span>
               </li>
             </ol>
@@ -515,7 +501,7 @@ export default function GradPresentationPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 shrink-0 pb-4 border-b border-white/10 gap-4">
         <div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300 tracking-tight">
-            Version 5: Error Detection & ARQ
+          <span>Open 5-Files Demo</span>
           </h2>
           <div className="h-1.5 w-32 bg-gradient-to-r from-blue-500 to-indigo-500 mt-4 rounded-full"></div>
         </div>
@@ -524,7 +510,7 @@ export default function GradPresentationPage() {
           className="px-6 py-3 bg-blue-600/90 hover:bg-blue-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.8)] transition-all flex items-center gap-3 border border-blue-400/30 whitespace-nowrap"
           target="_blank"
         >
-          <span>Launch V5 Visualizer</span>
+          <span>Open 5-Files Demo</span>
           <svg
             className="w-5 h-5"
             fill="none"
@@ -687,7 +673,7 @@ export default function GradPresentationPage() {
           className="px-6 py-3 bg-blue-600/90 hover:bg-blue-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.8)] transition-all flex items-center gap-3 border border-blue-400/30 whitespace-nowrap"
           target="_blank"
         >
-          <span>Launch V10 Visualizer</span>
+          <span>Open 5-Files Demo</span>
           <svg
             className="w-5 h-5"
             fill="none"
@@ -842,7 +828,7 @@ export default function GradPresentationPage() {
           className="px-6 py-3 bg-blue-600/90 hover:bg-blue-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.8)] transition-all flex items-center gap-3 border border-blue-400/30 whitespace-nowrap"
           target="_blank"
         >
-          <span>Launch V15 Visualizer</span>
+          <span>Open 5-Files Demo</span>
           <svg
             className="w-5 h-5"
             fill="none"
@@ -988,7 +974,7 @@ export default function GradPresentationPage() {
           className="px-6 py-3 bg-blue-600/90 hover:bg-blue-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.8)] transition-all flex items-center gap-3 border border-blue-400/30 whitespace-nowrap"
           target="_blank"
         >
-          <span>Launch V24 Visualizer</span>
+          <span>Open 5-Files Demo</span>
           <svg
             className="w-5 h-5"
             fill="none"

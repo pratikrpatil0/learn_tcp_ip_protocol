@@ -4,12 +4,12 @@ export default function IntroPage() {
   return (
     <DocumentationLayout 
       title="Introduction" 
-      description="Project Overview: Building a TCP/IP-Inspired Transport Protocol"
+      description="Project Overview: A Staged TCP/IP-Inspired Transport Protocol Implementation over UDP in C"
     >
       <section className="mb-10">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Project Title</h2>
         <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded shadow-sm">
-          <p className="text-xl font-bold text-gray-800">
+          <p className="text-xl font-bold text-gray-800 leading-tight">
             A Staged TCP/IP-Inspired Transport Protocol Implementation over UDP in C
           </p>
           <p className="text-gray-600 mt-2 italic">A Graduation Project Submitted by Pratik Patil</p>
@@ -19,7 +19,7 @@ export default function IntroPage() {
       <section className="mb-10">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Why Linux and C?</h2>
         <p className="text-gray-700 leading-relaxed mb-4">
-          The foundation of this learning project revolves around understanding exactly how bytes flow inside a network stack before OS abstractions handle them. I chose <strong>C</strong> and <strong>Linux</strong> to build this project due to the following specific reasons:
+          The foundation of this learning project revolves around understanding exactly how bytes flow inside a network stack before OS abstractions handle them. I chose <strong>C</strong> and <strong>Linux</strong> to build this project because the title reflects a staged protocol implementation that must stay close to the system level.
         </p>
         <ul className="space-y-3 text-gray-700 list-none ml-2">
           <li className="pl-4 border-l-4 border-gray-300 py-1">
@@ -37,7 +37,7 @@ export default function IntroPage() {
       <section className="mb-10">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Core Reference Literature</h2>
         <p className="text-gray-700 leading-relaxed mb-6">
-          The conceptual and functional growth in each version of this project is strictly grounded in academic literature. To comprehend the complete TCP/IP protocol stack and adapt its logic into my C-based code, my implementations drew heavily from:
+          The conceptual and functional growth in each version of this project is strictly grounded in academic literature. To comprehend the complete TCP/IP protocol stack and adapt its logic into the C-based implementation behind this title, my implementations drew heavily from:
         </p>
         
         <div className="grid md:grid-cols-1 gap-4">

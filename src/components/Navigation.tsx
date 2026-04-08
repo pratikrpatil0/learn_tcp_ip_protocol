@@ -23,7 +23,7 @@ export default function Navigation() {
         {/* Top Bar */}
         <div className="flex justify-between items-center h-14 border-b border-gray-100">
           <Link href="/" className="text-lg font-bold text-gray-900">
-            TCP/IP Protocol Implementation - Step by Step
+            TCP/IP-Inspired Transport Protocol
           </Link>
           
           {/* Mobile menu button */}

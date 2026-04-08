@@ -6,14 +6,14 @@ export default function Home() {
       <div className="max-w-4xl w-full">
         {/* Header Section */}
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 mb-8 mt-8 text-center">
-          <h1 className="text-4xl font-extrabold text-blue-800 mb-4">
-            TCP/IP Protocol Implementation
+          <h1 className="text-4xl font-extrabold text-blue-800 mb-4 leading-tight">
+            A Staged TCP/IP-Inspired Transport Protocol Implementation over UDP in C
           </h1>
           <p className="text-xl text-gray-700 mb-6 font-medium">
-            A staged graduation project tracking the evolution of raw UDP into a fully reliable Transport Protocol
+            A staged graduation project tracking the evolution of raw UDP into a fully reliable transport protocol
           </p>
           <div className="text-gray-500 mb-6 flex flex-col gap-2">
-            <span className="bg-gray-100 py-1 px-3 rounded-full text-sm inline-block w-max mx-auto font-medium text-gray-700">Project Language: C over Linux Sockets</span>
+            <span className="bg-gray-100 py-1 px-3 rounded-full text-sm inline-block w-max mx-auto font-medium text-gray-700">Project Language: C over Linux UNIX Sockets</span>
           </div>
         </div>
 
@@ -26,7 +26,7 @@ export default function Home() {
               <span className="ml-2 inline-block transition-transform group-hover:translate-x-1">→</span>
             </h2>
             <p className="text-gray-600">
-              Read the conceptual framework, objectives, literature references, and why this project uses direct Linux UNIX environments over raw C.
+              Read the conceptual framework, project title, objectives, literature references, and why this project uses direct Linux UNIX environments over raw C.
             </p>
           </Link>
 

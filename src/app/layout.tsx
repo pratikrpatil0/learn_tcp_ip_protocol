@@ -6,8 +6,8 @@ import Navigation from "@/components/Navigation";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TCP/IP Protocol Implementation",
-  description: "A graduation project implementing TCP/IP protocol from scratch with interactive visualizations",
+  title: "A Staged TCP/IP-Inspired Transport Protocol Implementation over UDP in C",
+  description: "A staged TCP/IP-inspired transport protocol implementation over UDP in C with interactive visualizations",
 };
 
 export default function RootLayout({
