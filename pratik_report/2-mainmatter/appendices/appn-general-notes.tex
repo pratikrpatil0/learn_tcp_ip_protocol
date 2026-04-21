@@ -5,20 +5,12 @@ UDP project. It is written to support evaluation, viva discussion, and future
 continuation of the codebase.
 
 \section{Appendix Purpose}
-The main chapters describe architecture and results at report level. This
-appendix goes deeper into operational details:
-
-\begin{enumerate}
-    \item detailed behavior of sender and receiver loops,
-    \item practical debug checklist used during development,
-    \item experiment script style and repeatable run plan,
-    \item level-specific observations and pitfalls,
-    \item extension blueprint for future cohorts.
-\end{enumerate}
+The main chapters cover the report view. This appendix keeps the practical
+details, debug notes, and next-step ideas in one place.
 
 \section{Complete Build and Run Workflow}
 The project uses plain GCC and does not depend on external networking
-frameworks. A standard run for one level follows the same sequence.
+frameworks. Each version follows the same basic run order.
 
 \subsection{Compile}
 For version $N$:
@@ -31,31 +23,29 @@ For version $N$:
 \begin{enumerate}
     \item Open terminal 1 and run \texttt{./receiver\_N}
     \item Open terminal 2 and run \texttt{./sender\_N}
-    \item Enter test message in sender terminal.
+    \item Type the test message in the sender terminal.
 \end{enumerate}
 
 \subsection{Operational Notes}
 \begin{enumerate}
-    \item Always start receiver first so bind/listen path is active.
-    \item Keep one active sender-receiver pair on port 9090 at a time.
-    \item If process hangs after experiments, terminate old binaries and rerun.
+    \item Start the receiver first so the bind path is ready.
+    \item Use only one sender and receiver pair on port 9090 at a time.
+    \item If a process hangs, stop the old binaries and run again.
 \end{enumerate}
 
 \section{Debug Checklist Used in This Project}
 The following checklist was used repeatedly and is useful for future maintenance.
 
 \begin{enumerate}
-    \item Verify sender destination address and port.
-    \item Verify receiver bind success and error handling.
-    \item Confirm packet field initialization before checksum computation.
-    \item Confirm checksum recomputation resets checksum field to zero.
-    \item Confirm sender base and next\_to\_send pointers satisfy
-    $base \le next\_to\_send$.
-    \item Confirm ACK handling updates sender window exactly once.
-    \item Confirm duplicate packet handling does not duplicate delivery.
-    \item Confirm timeout value is in safe range and retry cap prevents
-    infinite loops.
-    \item Confirm FIN handshake executes and sockets are closed gracefully.
+    \item Check the sender address and port.
+    \item Check that the receiver binds cleanly and handles errors.
+    \item Make sure packet fields are set before checksum work begins.
+    \item Make sure checksum recomputation starts from a zero checksum field.
+    \item Make sure sender base and next\_to\_send stay in order.
+    \item Make sure ACK handling moves the window only once.
+    \item Make sure duplicate packets are not delivered twice.
+    \item Make sure the timeout is reasonable and retries cannot loop forever.
+    \item Make sure the FIN exchange finishes and sockets close cleanly.
 \end{enumerate}
 
 \clearpage
@@ -63,26 +53,25 @@ The following checklist was used repeatedly and is useful for future maintenance
 Across advanced versions, sender logic follows a common event-driven pattern:
 
 \begin{enumerate}
-    \item Initialize socket, destination, timeout controls.
-    \item Perform handshake if protocol level requires session setup.
-    \item Segment message into packets/chunks.
-    \item Transmit packets while keeping in-flight count below window limit.
-    \item Wait for ACKs and slide window accordingly.
-    \item Detect timeout or duplicate ACK events and trigger retransmission
-    policy.
-    \item Close connection using FIN logic.
+    \item Set up the socket, destination, and timeout values.
+    \item Do the handshake when the level needs it.
+    \item Split the message into packets or chunks.
+    \item Send packets while keeping the in-flight count inside the window.
+    \item Wait for ACKs and move the window forward.
+    \item Watch for timeout or duplicate ACK events and retransmit when needed.
+    \item Close the connection with FIN logic.
 \end{enumerate}
 
 \subsection{State Variables}
 The most influential sender variables in high-level versions are:
 
 \begin{enumerate}
-    \item \texttt{base}: oldest unacknowledged sequence.
-    \item \texttt{next\_to\_send}: next sequence eligible for send.
-    \item \texttt{window\_size}: configured or dynamic send limit.
-    \item \texttt{rto\_ms}: retransmission timeout in milliseconds.
-    \item \texttt{cwnd} and \texttt{ssthresh}: congestion-control state.
-    \item duplicate ACK counters per acknowledgement number.
+    \item \texttt{base}: the oldest packet still waiting for ACK.
+    \item \texttt{next\_to\_send}: the next packet ready to go out.
+    \item \texttt{window\_size}: the current send limit.
+    \item \texttt{rto\_ms}: the retransmission timeout in milliseconds.
+    \item \texttt{cwnd} and \texttt{ssthresh}: the congestion-control values.
+    \item duplicate ACK counters for each ACK number.
 \end{enumerate}
 
 \clearpage
@@ -90,49 +79,49 @@ The most influential sender variables in high-level versions are:
 Advanced receiver implementations use predictable stages:
 
 \begin{enumerate}
-    \item Validate packet checksum and flags.
-    \item Check sequence relation with \texttt{expected\_seq}.
-    \item For in-order data, deliver immediately and advance expectation.
-    \item For out-of-order but in-window data, buffer and ACK appropriately.
-    \item For duplicate data, re-ACK to help sender convergence.
-    \item Process FIN and release resources cleanly.
+    \item Check the packet checksum and flags.
+    \item Compare the sequence with \texttt{expected\_seq}.
+    \item Deliver in-order data right away and move forward.
+    \item Buffer out-of-order data that still fits in the window, then ACK it.
+    \item Re-ACK duplicates so the sender can recover.
+    \item Handle FIN and free resources cleanly.
 \end{enumerate}
 
 \subsection{Receiver Buffering in Selective-Repeat Style}
-Selective-repeat-like receiver behavior uses parallel arrays for packet
-presence, payload storage, and payload length. This avoids data loss during
-reordering and allows in-order flush once missing sequence arrives.
+The selective-repeat style receiver uses parallel arrays for packets, lengths,
+and presence. That keeps reordered data safe and lets delivery resume in the
+right order once the missing packet arrives.
 
 \section{Version-by-Version Pitfall Notes}
 This section captures practical issues found during progressive development.
 
 \subsection{v0--v2 Pitfalls}
 \begin{enumerate}
-    \item Mistake in bit ordering can invert character reconstruction.
-    \item Missing null terminator logic causes receiver to block indefinitely.
-    \item Delay control via \texttt{usleep} is environment-dependent.
+    \item Bit order mistakes can rebuild the wrong character.
+    \item Missing null terminator logic can leave the receiver waiting.
+    \item \texttt{usleep} timing depends on the system.
 \end{enumerate}
 
 \subsection{v3--v7 Pitfalls}
 \begin{enumerate}
-    \item Parity mismatch handling must be deterministic on both ends.
-    \item ACK/NAK message format ambiguity can break sender wait logic.
-    \item Retry loops must cap attempts to avoid infinite retransmit cycles.
+    \item Parity checks need the same rules on both sides.
+    \item ACK/NAK formats must be clear or the sender can stall.
+    \item Retry loops need a limit so they do not run forever.
 \end{enumerate}
 
 \subsection{v8--v10 Pitfalls}
 \begin{enumerate}
-    \item Handshake flags must not overlap incorrectly.
-    \item Checksum must be recomputed after all payload bytes are assigned.
-    \item Sliding window pointer arithmetic is prone to off-by-one errors.
+    \item Handshake flags must not clash.
+    \item Recompute the checksum only after all payload bytes are set.
+    \item Sliding-window pointer math can easily slip by one.
 \end{enumerate}
 
 \subsection{v11--v14 Pitfalls}
 \begin{enumerate}
-    \item Out-of-order buffer flush must preserve sequence continuity.
-    \item Adaptive RTO can oscillate without stable RTT sampling.
-    \item Duplicate ACK counters must reset correctly after state transitions.
-    \item Fast recovery exits can be mishandled if ACK interpretation is vague.
+    \item Out-of-order flush must keep the sequence intact.
+    \item Adaptive RTO can swing too much without steady RTT samples.
+    \item Duplicate ACK counters must reset after each state change.
+    \item Fast recovery can go wrong if ACKs are read too loosely.
 \end{enumerate}
 
 \section{Experiment Design Template}
@@ -165,25 +154,25 @@ Notes & Any abnormal behavior or timeout event logs \\
 
 \clearpage
 \section{Sample Observation Narrative}
-The following narrative style was used to interpret test runs.
+The following narrative style was used to explain the test runs.
 
 \begin{displayquote}
-In level 9 under moderate induced delay, sender experienced repeated timeout at
-window base. Retransmission from base restored progress, but overall completion
-time increased significantly compared to delay-free run. Receiver ACK pattern
-confirmed cumulative behavior.
+In level 9, with a moderate induced delay, the sender kept timing out at the
+window base. Retransmission from base brought progress back, but the overall
+time to completion was much longer than in a run without delays. The receiver's
+ACK pattern confirmed the overall behavior.
 \end{displayquote}
 
 \begin{displayquote}
-In level 12 under variable delay, adaptive RTO reduced false timeout events
-after initial RTT stabilization. Retransmission ratio decreased compared to
-fixed-timeout configuration.
+In level 12, with a variable delay, adaptive RTO cut down on false timeout
+events after the first RTT stabilized. The retransmission ratio went down when
+compared to the fixed-timeout setup.
 \end{displayquote}
 
 \begin{displayquote}
-In level 14 with synthetic packet gap, triple duplicate ACK condition triggered
-fast retransmit before timeout expiry. Recovery was visibly faster than
-timeout-driven recovery path.
+In level 14, with a fake packet gap, the triple duplicate ACK condition caused
+fast retransmit to happen before the timeout ran out. Recovery was clearly
+faster than the path that was based on timeouts.
 \end{displayquote}
 
 \section{Illustrative State Machine View}
@@ -258,27 +247,27 @@ Future project groups can convert this implementation into a mini benchmark
 suite by adding automated scripts. Useful extensions include:
 
 \begin{enumerate}
-    \item throughput vs message size curve per version,
-    \item retransmission ratio vs induced packet-loss probability,
-    \item completion time distribution under delay jitter,
-    \item fairness comparison under two parallel sender flows,
-    \item sensitivity of adaptive RTO to \(\alpha\) and \(\beta\) choices.
+    \item throughput versus message size for each version,
+    \item retransmission ratio versus injected packet loss,
+    \item completion time under delay jitter,
+    \item fairness with two parallel sender flows,
+    \item adaptive RTO sensitivity to \(\alpha\) and \(\beta\).
 \end{enumerate}
 
 \section{Security and Reliability Perspective}
 The project intentionally focuses on reliability and congestion behavior, not
-security. However, in practical deployments, integrity and authenticity both
-matter. Checksum detects random corruption but does not prevent malicious packet
-modification. A production extension would include:
+security. But in real-world use, integrity and authenticity still matter.
+Checksum catches random corruption, but it does not stop a malicious change.
+A production extension would include:
 
 \begin{enumerate}
     \item message authentication,
     \item optional encryption,
     \item replay protection,
-    \item session identity validation.
+    \item session identity checks.
 \end{enumerate}
 
-These are orthogonal to transport logic but critical for real systems.
+These sit outside the transport logic, but they matter in real systems.
 
 \clearpage
 \section{Code Organization Recommendations}
@@ -286,11 +275,11 @@ As code complexity grows, modularization becomes important. Recommended
 refactoring pattern:
 
 \begin{enumerate}
-    \item \texttt{packet.h/.c} for packet structs and checksum utilities,
-    \item \texttt{timer.h/.c} for RTT/RTO and timestamp helpers,
-    \item \texttt{window.h/.c} for send/receive window operations,
-    \item \texttt{congestion.h/.c} for cwnd and recovery transitions,
-    \item \texttt{main\_sender.c} and \texttt{main\_receiver.c} for orchestration.
+    \item \texttt{packet.h/.c} for packet structs and checksum helpers,
+    \item \texttt{timer.h/.c} for RTT, RTO, and timestamp helpers,
+    \item \texttt{window.h/.c} for send and receive window work,
+    \item \texttt{congestion.h/.c} for cwnd and recovery steps,
+    \item \texttt{main\_sender.c} and \texttt{main\_receiver.c} for the main flow.
 \end{enumerate}
 
 This separation reduces duplication across version files.
@@ -299,39 +288,20 @@ This separation reduces duplication across version files.
 To ensure reproducibility of results in academic evaluation:
 
 \begin{enumerate}
-    \item record compiler version and build flags,
-    \item record operating system and kernel details,
-    \item isolate background network-intensive applications,
-    \item run each experiment multiple times,
-    \item report average and spread (minimum/maximum or standard deviation).
+    \item note the compiler version and build flags,
+    \item note the operating system and kernel details,
+    \item close other network-heavy applications,
+    \item run each experiment several times,
+    \item report the average and spread (minimum/maximum or standard deviation).
 \end{enumerate}
 
 Without reproducibility controls, protocol comparisons may appear inconsistent.
 
-\section{Expanded Reflection on Learning Outcomes}
-This project created strong practical learning in four dimensions.
-
-\subsection{Networking Concepts}
-Ideas such as reliable delivery, sequence management, and ACK policies became
-much clearer after implementing them manually.
-
-\subsection{Systems Programming}
-Low-level C socket work, timeout configuration, and careful memory handling
-improved confidence in systems programming discipline.
-
-\subsection{Algorithmic Thinking}
-Adaptive timeout and congestion behavior required state-machine thinking and
-careful event response logic.
-
-\subsection{Technical Communication}
-The staged codebase enabled structured report writing, where each chapter and
-section maps naturally to a protocol capability.
-
 \section{Expanded Testing Scenarios and Interpretation}
-Recommended scenarios include clean-channel baseline, delayed ACK,
-packet-loss injection, out-of-order arrival, duplicate ACK bursts, and
-near-limit message size tests. Together, these cases expose correctness,
-recovery speed, timeout behavior, and congestion adaptation quality.
+Some suggested scenarios are clean-channel baseline, delayed ACK, and packet loss.
+injection, messages coming in out of order, duplicate ACK bursts, and messages that are almost too big
+tests. These cases show correctness, recovery speed, timeout behavior, and
+quality of congestion adaptation.
 
 \section{Evaluation Rubric for Academic Assessment}
 The following rubric can be used during project review.
@@ -362,21 +332,19 @@ Documentation & 10\% & Diagram quality, chapter structure, reproducibility notes
 
 \clearpage
 \section{Final Reflection}
-From a learning viewpoint, the strongest contribution of this project is the
-clear mapping between theory and implementation. Concepts often memorized in
-networking courses become operational behaviors that can be observed directly in
-terminal traces. The staged versions form a practical curriculum in protocol
-engineering: encoding, integrity checks, reliability loops, pipelining,
-adaptation, and congestion response.
+From an educational standpoint, the strongest part of this project is the
+clear link between theory and practice. Ideas from networking class turn into
+behaviors you can see in terminal traces. The staged versions work like a
+small course in protocol engineering, covering encoding, integrity checks,
+reliability loops, pipelining, adaptation, and congestion response.
 
-This project also demonstrates that protocol design is fundamentally about
-trade-offs. Stronger reliability adds state. Higher throughput adds complexity.
-Faster recovery requires careful event interpretation. Better adaptability needs
-stable measurement. Understanding and balancing these trade-offs is the core
-skill developed through this work.
+This project also shows that protocol design is about trade-offs. Better
+reliability adds state. Higher throughput adds complexity. Faster recovery
+needs careful event handling. Better adaptability needs steady measurement.
+The main skill learned here is how to balance those trade-offs.
 
 \section{Appendix Summary}
-This appendix extends the main report with operational detail, implementation
-insights, and actionable next steps. Together with the main chapters, it
-provides a complete technical narrative from basic UDP communication to
-TCP-inspired reliability and congestion control behavior in C.TCP-inspired transport control through deep learning exercises.
+This appendix adds practical details, implementation tips, and ready-to-use
+steps to the main report. Together with the main chapters, it tells the full
+story from basic UDP communication to TCP-like reliability and congestion
+control behavior in C. It is meant as a simple transport-control learning aid.

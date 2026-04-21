@@ -1,12 +1,11 @@
 \chapter{Algorithmic and Quantitative Analysis}
 
-This chapter formalizes the major algorithms used in the project and explains
-their practical effect. The purpose is not only to present formulas, but also
-to connect each formula to implementation decisions in sender and receiver
-modules.
+This chapter explains the main algorithms used in the project and what they do
+in practice. The formulas are here to show how the code works, not just to
+list math on its own.
 
 \section{Bit Encoding and Message Cost}
-In early versions, each character is split into 8 bits and transmitted as
+In early versions, each character is broken into 8 bits and transmitted as
 separate UDP datagrams. If a message has length $L$ characters, then the number
 of payload datagrams in pure bit mode is
 \begin{equation}
@@ -15,8 +14,7 @@ N_{\text{bit}} = 8L + 8,
 where the additional $8$ corresponds to transmitting the null terminator as one
 more byte.
 
-This immediately explains why bit mode is inefficient. Datagram count grows
-linearly with a large constant factor.
+That is why bit mode is slow. The number of datagrams grows very quickly.
 
 \section{Parity-Based Error Detection}
 For versions with parity, sender computes parity of one byte:
@@ -25,13 +23,13 @@ p = b_0 \oplus b_1 \oplus \cdots \oplus b_7,
 \end{equation}
 where $b_i$ is the $i$th bit of the character and $\oplus$ denotes XOR.
 
-Receiver computes parity again and compares. If mismatch is found, the packet
-is marked corrupted. Parity detects all odd-bit errors but cannot detect every
-even-bit error pattern. This is why later versions move to checksum.
+The receiver checks parity again and compares the result. If there is a
+mismatch, that packet is marked as corrupted. Parity catches all odd bit errors
+but not every even one, which is why later versions move to checksum.
 
 \section{Stop-and-Wait Service Time}
 In stop-and-wait, sender transmits one unit and waits for ACK before next send.
-Approximate per-packet cycle time is
+Approximate per packet cycle time is
 \begin{equation}
 T_{\text{cycle}} = T_{\text{tx}} + T_{\text{prop}} + T_{\text{proc}} + T_{\text{ack}}.
 \end{equation}
@@ -41,12 +39,12 @@ Ideal throughput under stop-and-wait is therefore bounded by
 \text{Throughput}_{\text{SAW}} \approx \frac{\text{payload per packet}}{T_{\text{cycle}}}.
 \end{equation}
 
-Even if channel capacity is high, waiting for each ACK keeps effective
-throughput low when round-trip delay is non-trivial.
+Even when channel capacity is high, waiting for each ACK keeps throughput low
+if the round trip delay is not small.
 
 \section{Checksum in TCP-like Versions}
 In advanced versions, a one's complement style checksum is computed over key
-header fields and payload bytes. Conceptually:
+header fields and payload bytes. In simple terms:
 \begin{align}
 S &= \sum \text{(header fields + payload bytes)}, \\
 S' &= (S \bmod 2^{16}) + \left\lfloor\frac{S}{2^{16}}\right\rfloor, \\
@@ -54,7 +52,7 @@ S' &= (S \bmod 2^{16}) + \left\lfloor\frac{S}{2^{16}}\right\rfloor, \\
 \end{align}
 
 At the receiver, checksum field is reset, recomputed, and compared. This gives
-stronger detection than parity and supports multi-byte payload packets.
+stronger detection than parity and supports multi byte payload packets.
 
 \section{Sliding Window Efficiency}
 With sender window size $W$, up to $W$ packets can be in flight. In an ideal
@@ -64,8 +62,7 @@ U \approx \min\left(1, \frac{W}{1 + 2a}\right),
 \end{equation}
 where $a = T_{\text{prop}}/T_{\text{tx}}$.
 
-This relation explains why larger windows increase throughput until the path is
-fully utilized.
+This is why a larger window increases throughput until the path is fully used.
 
 \section{Chunking Gain}
 If payload per packet increases from 1 byte to $C$ bytes (for example,
@@ -74,7 +71,7 @@ $C=8$), the number of data packets for message length $L$ becomes
 N_{\text{chunk}} = \left\lceil\frac{L}{C}\right\rceil.
 \end{equation}
 
-Relative packet count reduction compared to one-byte payload is approximately
+Compared with one-byte payloads, the packet count drops by about
 \begin{equation}
 \text{Gain factor} \approx C,
 \end{equation}
@@ -82,7 +79,7 @@ ignoring control packets and retransmissions.
 
 \clearpage
 \section{Adaptive RTO Estimation}
-Versions 12 and above use smoothed RTT estimation and variation-based timeout.
+Versions 12 and above use smoothed RTT estimation and variation based timeout.
 Given sample RTT $R$, smoothed RTT ($SRTT$) and RTT variation ($RTTVAR$) are
 updated as follows:
 \begin{align}
@@ -100,11 +97,11 @@ This model is aligned with practical transport engineering guidance and avoids
 both aggressive and overly delayed retransmissions.
 
 \section{Congestion Window Dynamics}
-In congestion-controlled versions, sender maintains congestion window $cwnd$ and
+In congestion controlled versions, sender maintains congestion window $cwnd$ and
 slow-start threshold $ssthresh$.
 
 \subsection{Slow Start}
-When $cwnd < ssthresh$, growth is fast (approximately one MSS-equivalent unit
+When $cwnd < ssthresh$, growth is fast (approximately one MSS equivalent unit
 per ACK, resulting in near exponential growth per RTT in simplified models).
 
 \subsection{Congestion Avoidance}
@@ -136,7 +133,7 @@ T_{\text{total}} = T_{\text{setup}} + T_{\text{data}} + T_{\text{retrans}} + T_{
 Where:
 \begin{enumerate}
     \item $T_{\text{setup}}$ includes handshake steps,
-    \item $T_{\text{data}}$ includes normal in-order transfer,
+    \item $T_{\text{data}}$ includes normal in order transfer,
     \item $T_{\text{retrans}}$ includes recovery delay from loss/corruption,
     \item $T_{\text{teardown}}$ includes connection close signaling.
 \end{enumerate}
@@ -157,19 +154,23 @@ These metrics give a balanced view across correctness and efficiency.
 
 \section{A Practical Theorem-like Observation}
 \begin{theorem}
-For a fixed message length and fixed packet loss conditions, increasing sender
-window size improves throughput up to a saturation point, after which timeout,
-loss recovery, and receiver buffering limits dominate.
+Increasing the size of sender's window increases throughput up to the
+saturation point and, thereafter, throughput is limited.
 \end{theorem}
 
 \begin{Proof}
-With small window size, sender frequently waits for acknowledgements and cannot
-fully utilize available channel time. Increasing the window allows more
-in-flight packets and reduces idle duration. However, once in-flight capacity
-matches path-delay product and receiver processing limits, further increase does
-not improve delivered payload rate. In lossy conditions, larger windows may also
-increase retransmission pressure if recovery logic is not selective. Therefore,
-throughput gains plateau after a practical operating point.
+Increasing the number of packets in transmission reduces total time sender
+waits on acknowledgement before sending the next packet in sequence. The
+larger the packet window, the more packets can be transmitted before sender has
+to wait on an acknowledgement; and, therefore, the fewer times the sender will
+be idle. However, once the number of in transit packets is equal to the
+product of the time it takes for a packet to travel from sender to receiver
+and the receiver's ability to process packets (e.g. memory); no increase in
+sender's window will produce any additional packets delivered. Thus, when
+there are lost packets in error, a larger sending window will produce a larger
+error recovery burden unless recipient uses selective acknowledgment.
+Consequently, throughput will plateau once sender reaches maximum size of
+window.
 \end{Proof}
 
 \clearpage
@@ -178,14 +179,14 @@ The formulas in this chapter explain observed behavior from level progression:
 
 \begin{enumerate}
     \item versions v0--v2 have very high packet overhead,
-    \item v5--v7 improve correctness but remain latency-bound,
+    \item v5--v7 improve correctness but remain latency bound,
     \item v9 and above improve utilization through pipelining,
     \item v10 and above reduce packet count through chunking,
     \item v12 and above improve timing decisions through adaptive RTO,
     \item v13 and above balance aggressiveness and stability using congestion
-    control logic and recovery-aware retransmission behavior,
+    control logic and recovery aware retransmission behavior,
     \item v15--v24 extend the same transport ideas with richer TCP-like
-    refinements, including timestamp and recovery-oriented control.
+    refinements, including timestamp and recovery oriented control.
 \end{enumerate}
 
 This quantitative interpretation supports the implementation narrative in the

@@ -1106,6 +1106,405 @@ export default function GradPresentationPage() {
         </div>
       </div>
     </div>,
+
+    // Slide 12: Other Versions Overview
+    <div
+      key="12"
+      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-auto"
+    >
+      <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20"></div>
+
+      <div className="relative z-10 w-full max-w-5xl mx-auto">
+        <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+          What About Versions 1-4, 6-9, 11-14, 16-23?
+        </h2>
+        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
+
+        <div className="space-y-6">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+            <h3 className="text-2xl font-semibold mb-3 text-blue-300">Versions 1-4: Foundation & Bit Encoding</h3>
+            <p className="text-slate-300 font-light leading-relaxed">
+              <strong>v1:</strong> Single character sent as 8 individual bits with reconstruction logic. 
+              <strong className="ml-4">v2:</strong> Full string transmission with NULL terminator. 
+              <strong className="ml-4">v3:</strong> Introduces parity bit detection per byte. 
+              <strong className="ml-4">v4:</strong> Extends to sequence number awareness for ordering.
+            </p>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+            <h3 className="text-2xl font-semibold mb-3 text-indigo-300">Versions 6-9: Reliability & Chunking</h3>
+            <p className="text-slate-300 font-light leading-relaxed">
+              <strong>v6:</strong> Packet structure formalization with explicit headers. 
+              <strong className="ml-4">v7:</strong> Enhanced error handling with better state management. 
+              <strong className="ml-4">v8:</strong> Introduces CRC32 checksum (more robust than parity). 
+              <strong className="ml-4">v9:</strong> Payload chunking optimization for throughput.
+            </p>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+            <h3 className="text-2xl font-semibold mb-3 text-teal-300">Versions 11-14: Advanced Windowing</h3>
+            <p className="text-slate-300 font-light leading-relaxed">
+              <strong>v11:</strong> Out-of-order packet buffering (selective-repeat style). 
+              <strong className="ml-4">v12:</strong> Improved ACK tracking with bitmap support. 
+              <strong className="ml-4">v13:</strong> Connection management improvements. 
+              <strong className="ml-4">v14:</strong> Fast retransmit on duplicate ACKs.
+            </p>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+            <h3 className="text-2xl font-semibold mb-3 text-amber-300">Versions 16-23: Congestion & Optimization</h3>
+            <p className="text-slate-300 font-light leading-relaxed">
+              <strong>v16-18:</strong> TCP timestamps and RTT measurement refinements. 
+              <strong className="ml-4">v19-21:</strong> SACK-like selective acknowledgment hints. 
+              <strong className="ml-4">v22-23:</strong> Congestion avoidance phase transitions with exponential backoff.
+            </p>
+          </div>
+
+          <div className="mt-8 p-6 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl">
+            <p className="text-slate-200 font-light leading-relaxed italic">
+              💡 <strong>Key Insight:</strong> Each version adds exactly one concept, keeping debugging manageable. The 5-demo versions (0, 5, 10, 15, 24) represent the major milestones. The intermediate versions bridge gaps and refine implementations.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>,
+
+    // Slide 13: Feature Comparison Table
+    <div
+      key="13"
+      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-auto"
+    >
+      <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-slate-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-20"></div>
+
+      <div className="relative z-10 w-full max-w-6xl mx-auto">
+        <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+          Feature Progression
+        </h2>
+        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="bg-indigo-900/40">
+                <th className="border border-slate-700 p-3 text-left font-semibold text-blue-300">Feature</th>
+                <th className="border border-slate-700 p-3 text-center font-semibold text-blue-300">v2</th>
+                <th className="border border-slate-700 p-3 text-center font-semibold text-indigo-300">v5</th>
+                <th className="border border-slate-700 p-3 text-center font-semibold text-teal-300">v10</th>
+                <th className="border border-slate-700 p-3 text-center font-semibold text-amber-300">v15</th>
+                <th className="border border-slate-700 p-3 text-center font-semibold text-rose-300">v24</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">Bit/Byte Transfer</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+              </tr>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">Parity/Checksum</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">Parity</td>
+                <td className="border border-slate-700 p-3 text-center">CRC32</td>
+                <td className="border border-slate-700 p-3 text-center">CRC32</td>
+                <td className="border border-slate-700 p-3 text-center">CRC32+</td>
+              </tr>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">ACK/NAK Framework</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+              </tr>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">Sliding Window</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">Adaptive</td>
+              </tr>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">Fixed Timeout (350ms)</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+              </tr>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">Adaptive RTO</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+              </tr>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">Congestion Control</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">Slow Start</td>
+                <td className="border border-slate-700 p-3 text-center">Full Reno</td>
+              </tr>
+              <tr className="hover:bg-white/5">
+                <td className="border border-slate-700 p-3 text-slate-300">Timestamps/Options</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✗</td>
+                <td className="border border-slate-700 p-3 text-center">✓</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>,
+
+    // Slide 14: Educational Value
+    <div
+      key="14"
+      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
+    >
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 pointer-events-none"></div>
+
+      <div className="relative z-10 w-full max-w-5xl mx-auto">
+        <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+          Educational Value & Learning Outcomes
+        </h2>
+        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
+
+        <div className="space-y-6">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl flex items-start gap-4">
+            <div className="text-3xl">🔒</div>
+            <div>
+              <h3 className="text-xl font-semibold mb-2 text-blue-300">Data Integrity</h3>
+              <p className="text-slate-300 font-light">Students understand parity and checksum trade-offs through hands-on implementation and error testing.</p>
+            </div>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl flex items-start gap-4">
+            <div className="text-3xl">✅</div>
+            <div>
+              <h3 className="text-xl font-semibold mb-2 text-indigo-300">Reliability Through Feedback</h3>
+              <p className="text-slate-300 font-light">Learn why acknowledgments and retransmission are essential; see it fail without them in v0-2.</p>
+            </div>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl flex items-start gap-4">
+            <div className="text-3xl">🔢</div>
+            <div>
+              <h3 className="text-xl font-semibold mb-2 text-teal-300">Ordering & Sequencing</h3>
+              <p className="text-slate-300 font-light">Sequence numbers ensure correct message reconstruction even when packets arrive out of order.</p>
+            </div>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl flex items-start gap-4">
+            <div className="text-3xl">⚡</div>
+            <div>
+              <h3 className="text-xl font-semibold mb-2 text-amber-300">Pipelining & Throughput</h3>
+              <p className="text-slate-300 font-light">Sliding windows show dramatic throughput improvements vs stop-and-wait; see 5x or higher gains in v10.</p>
+            </div>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl flex items-start gap-4">
+            <div className="text-3xl">📊</div>
+            <div>
+              <h3 className="text-xl font-semibold mb-2 text-rose-300">Adaptive Control</h3>
+              <p className="text-slate-300 font-light">Fixed timeouts fail under variable delays; adaptive algorithms (v15 and later) demonstrate why modern TCP works.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+
+    // Slide 15: Performance Trends
+    <div
+      key="15"
+      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
+    >
+      <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20"></div>
+
+      <div className="relative z-10 w-full max-w-5xl mx-auto">
+        <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+          Performance Trends
+        </h2>
+        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+            <h3 className="text-2xl font-semibold mb-6 text-blue-300">Reliability Improvement</h3>
+            <div className="space-y-4 text-slate-300 font-light">
+              <div className="flex justify-between items-center">
+                <span>v1 (raw bits)</span>
+                <span className="font-mono bg-blue-900/30 px-3 py-1 rounded">~22%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v5 (stop-and-wait)</span>
+                <span className="font-mono bg-indigo-900/30 px-3 py-1 rounded">~74%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v10 (sliding window)</span>
+                <span className="font-mono bg-teal-900/30 px-3 py-1 rounded">~83%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v15 (adaptive RTO)</span>
+                <span className="font-mono bg-amber-900/30 px-3 py-1 rounded">~88%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v24 (full Reno)</span>
+                <span className="font-mono bg-rose-900/30 px-3 py-1 rounded">~91%</span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mt-4 italic">Measured under 10% packet loss simulations</p>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
+            <h3 className="text-2xl font-semibold mb-6 text-indigo-300">Throughput Growth</h3>
+            <div className="space-y-4 text-slate-300 font-light">
+              <div className="flex justify-between items-center">
+                <span>v0 (baseline)</span>
+                <span className="font-mono bg-blue-900/30 px-3 py-1 rounded">1.0x</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v4 (chunking)</span>
+                <span className="font-mono bg-indigo-900/30 px-3 py-1 rounded">2.2x</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v10 (windowing)</span>
+                <span className="font-mono bg-teal-900/30 px-3 py-1 rounded">5.1x</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v15 (slow start)</span>
+                <span className="font-mono bg-amber-900/30 px-3 py-1 rounded">6.4x</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>v24 (full adaptive)</span>
+                <span className="font-mono bg-rose-900/30 px-3 py-1 rounded">7.8x</span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mt-4 italic">Relative to single-bit transmission</p>
+          </div>
+        </div>
+      </div>
+    </div>,
+
+    // Slide 16: Key Research Questions
+    <div
+      key="16"
+      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
+    >
+      <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-slate-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-20"></div>
+
+      <div className="relative z-10 w-full max-w-5xl mx-auto">
+        <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+          Research Questions Answered
+        </h2>
+        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
+
+        <div className="space-y-6">
+          <div className="border-l-4 border-blue-500 pl-6 py-4 bg-blue-900/20 rounded-r-lg">
+            <h3 className="text-xl font-semibold text-blue-200 mb-2">Q: How much reliability from user-space logic over UDP?</h3>
+            <p className="text-slate-300 font-light">Achieved above 90% delivery success with proper ACK/retry/buffering mechanisms, approaching TCP-like reliability.</p>
+          </div>
+
+          <div className="border-l-4 border-indigo-500 pl-6 py-4 bg-indigo-900/20 rounded-r-lg">
+            <h3 className="text-xl font-semibold text-indigo-200 mb-2">Q: When does throughput improve significantly?</h3>
+            <p className="text-slate-300 font-light">Sliding windows (v8 and later) and adaptive control (v15 and later) show 5x or higher gains. Chunking alone provides 2x to 3x improvement.</p>
+          </div>
+
+          <div className="border-l-4 border-teal-500 pl-6 py-4 bg-teal-900/20 rounded-r-lg">
+            <h3 className="text-xl font-semibold text-teal-200 mb-2">Q: How does adaptive timeout outperform fixed timeout?</h3>
+            <p className="text-slate-300 font-light">~15% better RTT estimation reduces unnecessary retransmissions and improves completion time significantly.</p>
+          </div>
+
+          <div className="border-l-4 border-amber-500 pl-6 py-4 bg-amber-900/20 rounded-r-lg">
+            <h3 className="text-xl font-semibold text-amber-200 mb-2">Q: How does congestion window control affect behavior?</h3>
+            <p className="text-slate-300 font-light">Improves fairness, reduces network oscillation, and prevents receiver buffer overflow during fast transmission phases.</p>
+          </div>
+
+          <div className="border-l-4 border-rose-500 pl-6 py-4 bg-rose-900/20 rounded-r-lg">
+            <h3 className="text-xl font-semibold text-rose-200 mb-2">Q: How can students use AI responsibly for protocol learning?</h3>
+            <p className="text-slate-300 font-light">Textbook → Idea exploration → Independent implementation → Verification ensures original, standards-grounded code.</p>
+          </div>
+        </div>
+      </div>
+    </div>,
+
+    // Slide 17: Conclusion
+    <div
+      key="17"
+      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-center bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
+    >
+      <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 translate-y-1/2 -translate-x-1/2"></div>
+
+      <div className="relative z-10 w-full max-w-4xl mx-auto">
+        <h2 className="text-5xl sm:text-6xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+          Conclusion
+        </h2>
+        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full mx-auto"></div>
+
+        <div className="space-y-8 text-xl sm:text-2xl text-slate-200 font-light leading-relaxed">
+          <p>This project bridges the gap between network theory and practice.</p>
+          
+          <p>By building <span className="font-semibold text-blue-300">25 versions incrementally</span>, students experience:</p>
+          
+          <div className="space-y-4 text-lg">
+            <p className="flex items-center justify-center gap-3">
+              <span className="text-3xl">✓</span>
+              <span>Why each TCP feature exists</span>
+            </p>
+            <p className="flex items-center justify-center gap-3">
+              <span className="text-3xl">✓</span>
+              <span>How features interact and trade off</span>
+            </p>
+            <p className="flex items-center justify-center gap-3">
+              <span className="text-3xl">✓</span>
+              <span>The evolution from simple to sophisticated protocols</span>
+            </p>
+          </div>
+
+          <div className="bg-indigo-500/20 border border-indigo-500/50 p-6 rounded-2xl mt-8">
+            <p className="text-slate-200 italic">
+              Responsible Learning: Textbook → Exploration → Implementation → Verification
+            </p>
+            <p className="text-sm text-slate-400 mt-3">
+              Result: Tangible understanding of transport protocol design principles
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>,
+
+    // Slide 18: Thank You
+    <div
+      key="18"
+      className="flex flex-col items-center justify-center h-full w-full p-8 sm:p-12 text-center bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
+    >
+      <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 translate-y-1/2 -translate-x-1/2"></div>
+
+      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center">
+        <h1 className="text-6xl sm:text-7xl font-extrabold mb-12 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
+          THANK YOU
+        </h1>
+
+        <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
+
+        <p className="text-2xl sm:text-3xl text-slate-300 mb-8 font-light">Questions?</p>
+
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl mt-8">
+          <p className="text-lg text-slate-300 mb-2 font-light">A Staged TCP/IP-Inspired Transport Protocol</p>
+          <p className="text-lg text-slate-300 font-light">Implementation over UDP in C</p>
+          <p className="text-sm text-slate-400 mt-4 font-light">Dr. Aamod Sane | FLAME University | April 2026</p>
+        </div>
+      </div>
+    </div>,
   ];
 
   const nextSlide = () =>

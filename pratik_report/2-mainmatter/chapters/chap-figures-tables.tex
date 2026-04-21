@@ -1,8 +1,6 @@
 \chapter{Illustrations, Comparative Analysis, and Final Outcomes}
 
-This chapter presents refined visual summaries and analysis of the complete
-protocol journey from version 0 to version 24. Each major subsection starts
-with a compact diagram or chart, followed by interpretation.
+This chapter shows the visuals and final takeaways from version 0 to version 24.
 
 \vspace{1.5\baselineskip}
 \begin{figure}[H]
@@ -41,7 +39,7 @@ with a compact diagram or chart, followed by interpretation.
 \draw[edge] (p3.east) -- (p4.west);
 \end{tikzpicture}%
 }
-\caption{Complete session lifecycle used by advanced protocol versions.
+\caption{Full session flow for the advanced versions.
 }
 \label{fig:lifecycle-view}
 \end{figure}
@@ -49,9 +47,9 @@ with a compact diagram or chart, followed by interpretation.
 \vspace{-2\baselineskip}
 \section{End-to-End Protocol Lifecycle}
 
-Figure \ref{fig:lifecycle-view} summarizes the practical lifecycle: connection
-setup, reliable data phase, acknowledgement progress, and graceful teardown.
-This sequence is foundational for comparing behaviors across versions.
+Figure \ref{fig:lifecycle-view} shows the main steps: setup, data transfer,
+acknowledgement, and clean teardown. That flow is the basis for comparing
+versions.
 
 \clearpage
 \begin{figure}[H]
@@ -75,17 +73,15 @@ This sequence is foundational for comparing behaviors across versions.
 \draw[flow] (c.east) -- node[pos=0.5, above, sloped, fill=white, inner sep=1pt]{adds adaptive control} (d.west);
 \end{tikzpicture}%
 }
-\caption{Layered capability growth across protocol version families.
+\caption{How the feature set grows across version families.
 }
 \label{fig:capability-layers}
 \end{figure}
 
 \section{Version Capability Layers}
 
-Figure \ref{fig:capability-layers} shows that each family introduces a focused
-set of transport capabilities, keeping the progression understandable and
-traceable.
-
+Figure \ref{fig:capability-layers} shows how each family adds one clear group
+of transport features at a time.
 \clearpage
 \begin{figure}[H]
 \centering
@@ -119,17 +115,15 @@ traceable.
 \end{tikzpicture}
 }
 
-\caption{Illustrative reliability trend as protocol features mature.
+\caption{Reliability trend as the protocol grows.
 }
 \label{fig:reliability-trend}
 \end{figure}
 
 \section{Reliability Progress Chart}
 
-Figure \ref{fig:reliability-trend} highlights the expected rise in successful
-delivery as parity/checksum, acknowledgements, retries, buffering, and adaptive
-control are introduced.
-
+Figure \ref{fig:reliability-trend} shows how successful delivery improves as
+checks, acknowledgements, retries, buffering, and adaptive control are added.
 \begin{figure}[H]
 \centering
 \resizebox{\textwidth}{!}{%
@@ -163,15 +157,15 @@ control are introduced.
 \end{tikzpicture}
 }
 
-\caption{Illustrative throughput improvement from staged protocol evolution.
+\caption{Throughput trend across the staged versions.
 }
 \label{fig:throughput-trend}
 \end{figure}
 
 \section{Throughput-Oriented Improvement Chart}
 
-Figure \ref{fig:throughput-trend} reflects why pipelining, chunking, and
-faster loss recovery improve channel utilization relative to early versions.
+Figure \ref{fig:throughput-trend} shows why pipelining, chunking, and faster
+loss recovery improve channel use.
 
 \clearpage
 \begin{table}[H]
@@ -230,64 +224,63 @@ single reference view for discussion and evaluation.
 \draw[arr] (e4.east) -- (e5.west);
 \end{tikzpicture}%
 }
-\caption{Simplified fast-loss-recovery event path in advanced versions.
+\caption{Fast loss recovery in the advanced versions.
 }
 \label{fig:loss-recovery-path}
 \end{figure}
 
 \section{Loss-Recovery Behavior Illustration}
 
-Figure \ref{fig:loss-recovery-path} captures the main control advantage of
-later versions: loss can be inferred from duplicate acknowledgements and
-recovered without waiting for full timeout expiration.
+Figure \ref{fig:loss-recovery-path} shows the main advantage of later
+versions: duplicate ACKs can trigger recovery before the timeout runs out.
 
 \section{Key Findings}
 
-The combined visual and tabular evidence supports five important findings:
+Five clear takeaways come from the visuals and tables:
 
 \begin{enumerate}
-    \item Reliability improves significantly once acknowledgement and timeout
-    logic is introduced.
-    \item Throughput improves mainly after sliding window and chunk-based
-    transmission are added.
-    \item Receiver-side buffering in v11+ reduces waste under reordering.
-    \item Adaptive RTO reduces avoidable retransmissions under variable delay.
-    \item Fast retransmit/recovery introduced in v14 and refined through
-    v24 provides cleaner and faster loss response than timeout-only recovery.
+    \item Acknowledgements and timeouts make the system much more reliable.
+    \item Chunked sending and sliding windows are what push throughput up.
+    \item Receiver buffering in v11+ reduces waste when packets arrive out of
+    order.
+    \item Adaptive RTO cuts down unnecessary retransmissions when delay
+    changes.
+    \item Fast retransmit/recovery, first added in v14 and refined through
+    v24, reacts to loss faster than timeout-only recovery.
 \end{enumerate}
 
 \section{Limitations}
 
 \begin{enumerate}
-    \item Most tests are localhost-focused and do not represent large WAN
-    diversity.
-    \item Security extensions (authentication/encryption) are intentionally not
-    included.
-    \item Full TCP-style advertised window and SACK block encoding are outside
-    this implementation scope.
-    \item Experimental charts are analytical and illustrative; a fully automated
-    benchmarking harness remains future work.
+    \item Most tests ran on localhost, so they do not show full WAN variety.
+    \item Security features such as authentication and encryption are left out
+    on purpose.
+    \item A full TCP-style advertised window and SACK block encoding are out
+    of scope here.
+    \item The charts are useful for analysis, but a fully automated benchmark
+    harness is still future work.
 \end{enumerate}
 
 \section{Conclusion}
 
-This chapter confirms that the project evolves from basic datagram exchange to a
-strong educational transport model with reliability, pipelining, adaptation,
-and congestion-awareness. The final versions provide both practical
-implementation value and clear teaching value for transport-protocol learning.
+This chapter shows that the project goes from simple datagram exchange to a
+strong educational transport model that is reliable, can handle multiple
+requests at once, can adapt, and is aware of congestion. The final versions are
+useful for both putting into practice and learning about transport protocols.
 
-The interactive visualizer is one of the most important final outcomes. It ties
-the sender code, receiver code, finite state machine, and UML timeline into one
-coherent educational view. That makes the protocol easier to learn for novice
-students who may find TCP, congestion control, and C-based socket programming
-difficult when studied only from text or code. In this sense, the project is not
-only a software implementation but also a practical teaching aid that makes the
-concepts visible, structured, and easier to remember.
+One of the most important final results is the interactive visualizer. It brings
+together the sender code, receiver code, finite state machine, and UML timeline
+into one clear educational view. That makes the protocol easier for new
+students to learn, since TCP, congestion control, and C-based socket
+programming can be hard to understand when you only read about them or look at
+code. In this way, the project is more than just a piece of software; it's also
+a useful teaching tool that makes the ideas clear, organized, and easier to
+remember.
 
-As the final conclusion of the project, I have created both the protocol code
-and the interactive visualizer for educational purposes. The combination of
-versioned C implementations, textbook-grounded references, and synchronized
-visual explanations helps students understand networking concepts more easily.
-This is especially valuable for novice learners, because the visual walkthrough
-reduces the difficulty of C and transport-protocol ideas and turns the system
-into an accessible step-by-step learning experience.
+As the last step in the project, I made both the protocol code and the
+interactive visualizer for use in the classroom. Students find it easier to
+understand networking concepts when they have versioned C implementations,
+textbook-based references, and synchronized visual explanations. This is
+especially helpful for beginners because the visual walkthrough makes C and
+transport-protocol ideas easier to understand and turns the system into a
+step-by-step learning experience.

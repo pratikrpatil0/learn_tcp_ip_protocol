@@ -1,25 +1,24 @@
 \chapter{Introduction}
-Reliable communication is a central problem in computer networks. At first
-look, sending data from one machine to another may appear simple. In practice,
-real communication must handle packet loss, duplication, corruption, delay
-variation, and out-of-order delivery. Transport protocols such as TCP were
-designed to solve these issues. However, the behavior of TCP can feel abstract
-when studied only through theory.
+A major issue with computer networks is that they are not always reliable. At
+first, sending data from one computer to another may seem easy. In practice,
+real communication has to deal with packet loss, duplication, corruption,
+delay variation, and delivery that is not in order. TCP and other transport
+protocols were made to fix these problems. However, the behavior of TCP can
+feel abstract when studied only through theory.
 
-This project addresses that learning gap through a staged implementation of
-transport protocol features over UDP sockets in C. Instead of directly using
-the operating system's TCP stack, the project builds many TCP-like ideas in
-application code. This approach makes each design decision visible. The sender
-and receiver logic, sequence management, timeout handling, and congestion
-responses are explicitly implemented and observed.
+This project adddresses that learning gap by gradually adding transport
+protocol features to UDP sockets in C. The project doesn't use the operating
+system's TCP stack directly. Instead, it builds many TCP-like ideas into the
+application code. This method shows every design choice. The logic for sending
+and receiving, managing sequences, handling timeouts, and responding to
+congestion are all clearly defined and followed.
 
-The full work contains twenty-five sender-receiver versions, from level 0 to
-level 24. The earliest levels implement bit transmission and byte
-reconstruction. The middle levels introduce error detection and stop-and-wait
-reliability. The advanced levels include handshake, checksum, sliding window,
-selective-repeat style buffering, adaptive timeout estimation, timestamp and
-SACK-like ideas, and congestion control mechanisms that resemble TCP Reno
-behavior.
+There are twenty-five sender-receiver versions in the full work, from level 0
+to level 24. The first levels use bit transmission and byte reconstruction.
+The middle levels add error detection and reliability that stops and waits. The
+advanced levels have ideas for buffering that are like TCP Reno behavior, such
+as handshake, checksum, sliding window, selective-repeat style buffering,
+adaptive timeout estimation, timestamp, and SACK-like ideas.
 
 \clearpage
 \section{Problem Statement}
@@ -31,13 +30,14 @@ How can we incrementally construct a reliable and adaptive transport protocol ov
 
 \vspace{\baselineskip}
 
-UDP provides only best-effort datagram delivery. It does not guarantee packet
-arrival, packet order, duplicate suppression, congestion control, or connection
-state. Therefore, the application layer must implement these properties if they
-are required. This project demonstrates that process step by step. The
-learning method in this work is book-first and concept-first: AI tools were
-used only to discuss alternatives, debugging direction, and pseudocode ideas,
-while final logic, code writing, and verification were done manually.
+UDP only guarantees best-effort delivery of datagrams. It doesn't make sure
+that packets arrive, that they are in the right order, that duplicates are
+removed, that congestion is controlled, or that the connection state is
+correct. So, the application layer has to use these features if they are
+needed. This project shows how to do that step by step. The learning method in
+this work is book-first and concept-first: AI tools were only used to talk
+about other options, help with debugging, and come up with pseudocode ideas.
+The final logic, code writing, and verification were all done by hand.
 
 The conceptual path follows a top-down networking approach in the spirit of
 widely used teaching references, especially Kurose and Ross for protocol
@@ -50,21 +50,21 @@ foundations \cite{kurose_ross,stevens_tcpip,tanenbaum_wetherall,rfc793,rfc6298,r
 The major objectives of the project are listed below.
 
 \begin{enumerate}
-	\item Build a complete progression from raw transmission to advanced
-	transport control.
-	\item Keep each version self-contained, so that learners can compare
-	behavior across levels.
-	\item Follow a responsible learning workflow: study textbook concepts first,
-	then use AI tools only for idea exploration, and finally implement and test
+	\item Build a complete progression from raw transmission to transport
+	control.
+	\item Keep each version self-contained, so learners can compare behavior
+	across levels.
+	\item Follow a responsible learning process: study textbook concepts first,
+	then use AI tools for idea exploration, and finally implement and test
 	independently without copying generated code.
-	\item Implement reliability features incrementally: parity, ACK/NAK,
+	\item Implement reliability features step by step: parity, ACK/NAK,
 	timeout retries, sequence control, and retransmission logic.
 	\item Move from one-byte packets to chunk-based payload transfer to improve
 	throughput.
-	\item Introduce adaptive timing and congestion-aware sending to emulate
+	\item Introduce adaptive timing and congestion-aware sending to mimic
 	practical transport design.
 	\item Document implementation, assumptions, limitations, and future
-	improvements in a formal technical report.
+	improvements in a technical report.
 \end{enumerate}
 
 	\clearpage
@@ -77,10 +77,10 @@ message size in this project is bounded to around 99 characters.
 The same high-level execution pattern is followed in all versions:
 
 \begin{enumerate}
-	\item Start receiver.
-	\item Start sender.
-	\item Enter message in sender terminal.
-	\item Observe transfer, ACK behavior, retries, and completion.
+	\item Start the receiver first.
+	\item Then start the sender.
+	\item Type the message in the sender terminal.
+	\item Watch the transfer, ACKs, retries, and finish.
 \end{enumerate}
 
 \section{Architecture Overview}
@@ -115,8 +115,7 @@ networked deployment.
 \draw[arr] (proto2) -- (app2);
 \end{tikzpicture}
 }
-\caption{High-level architecture of the sender-receiver protocol system over
-UDP.
+\caption{Basic sender and receiver flow over UDP.
 }
 \label{fig:system-overview}
 \end{figure}
@@ -127,13 +126,13 @@ follows a layered progression model:
 
 \begin{enumerate}
 	\item \textbf{Foundation phase (v0--v2):} bit and byte transfer.
-	\item \textbf{Reliability phase (v3--v7):} parity, sequencing,
-	stop-and-wait, timeout retries, packet struct design.
+	\item \textbf{Reliability phase (v3--v7):} parity, sequence tracking,
+	stop-and-wait, timeout retries, packet structure.
 	\item \textbf{Transport phase (v8--v14):} handshake, checksum,
 	connection close, sliding window, chunking.
 	\item \textbf{Adaptive and Reno-like phase (v15--v24):} adaptive RTO,
-	timestamp/SACK-inspired refinements, congestion control, fast retransmit,
-	and recovery-oriented behavior.
+	timestamps, SACK-style hints, congestion control, fast retransmit, and
+	recovery.
 \end{enumerate}
 
 \section{Version-Wise Reference Backbone}
@@ -156,48 +155,44 @@ v8--v14 & Handshake, checksum, sliding window, selective-repeat style buffering,
 v15--v24 & Adaptive control, RTT tuning, timestamps, SACK-like ideas, congestion avoidance, educational Reno-style recovery & RFC 5681, RFC 2018, RFC 7323, RFC 6298, RFC 793, Stevens, and Kurose and Ross \cite{rfc5681,rfc2018,rfc7323,rfc6298,rfc793,stevens_tcpip,kurose_ross} \\
 \hline
 \end{tabular}
-\caption{Reference backbone for the staged protocol families.}
+\caption{Main references used for each protocol family.}
 \label{tab:reference-backbone}
 \end{table}
 
-This phased model provides two major advantages. First, debugging remains
-manageable because each level introduces a small set of new behaviors. Second,
-the relationship between protocol features and observed performance becomes
-clear in experiments.
+Each version family is based on a small number of reference sources that
+influenced its design and implementation style. This phased model offers two
+main benefits. First, debugging stays manageable since each level brings in a
+small set of new behaviors. Second, the connection between protocol features
+and observed performance becomes clear in experiments.
 
+\clearpage
 \section{Educational Value}
-From an academic perspective, this project provides a practical bridge between
-computer networks, systems programming, and algorithm design. Core concepts
-from textbooks become concrete:
+From an academic viewpoint, this project offers a practical link between computer networks, systems programming, and algorithm design. Key ideas from textbooks become tangible:
 
 \begin{enumerate}
 	\item \textbf{Data integrity:} parity and checksum validation.
-	\item \textbf{Reliability:} acknowledgement and retransmission.
+	\item \textbf{Reliability:} acknowledgment and retransmission.
 	\item \textbf{Ordering:} sequence numbers and expected sequence tracking.
-	\item \textbf{Pipelining:} multiple in-flight packets via windows.
+	\item \textbf{Pipelining:} multiple in-flight packets through windows.
 	\item \textbf{Flow under uncertainty:} adaptive timeout and congestion
 	response.
 \end{enumerate}
 
-Because each feature is implemented manually, the learner sees trade-offs
-directly. For example, stop-and-wait is easy to reason about but inefficient at
-higher latency. Sliding windows improve throughput but increase state
-complexity. Selective-repeat buffering improves robustness under reordering but
-requires careful bookkeeping.
+\vspace{\baselineskip}
 
-The interactive visualizer further strengthens educational value by showing the
-sender code, receiver code, finite state machine, and UML timeline together.
-That makes protocol state transitions easier to follow for beginners who are
-learning transport concepts for the first time.
+Since each feature is implemented manually, learners can see trade-offs directly. For instance, stop-and-wait is simple to understand, but it is inefficient at higher latency. Sliding windows boost throughput but increase state complexity. Selective-repeat buffering enhances reliability under reordering but requires careful tracking.
 
+The interactive visualizer further adds educational value by displaying the sender code, receiver code, finite state machine, and UML timeline together. This approach makes it easier for beginners to grasp protocol state transitions as they learn transport concepts for the first time.
+
+\clearpage
 \section{Scope and Boundaries}
-The project is intentionally scoped for learning and controlled experiments.
-Important boundaries are listed below.
+The project is designed for learning and controlled experiments. Important
+boundaries are listed below.
 
 \begin{enumerate}
-	\item Communication is primarily localhost based.
+	\item Communication is mainly localhost based.
 	\item Address and port are hardcoded in most versions.
-	\item Security features such as encryption and authentication are not
+	\item Security features like encryption and authentication are not
 	included.
 	\item Receiver-advertised window and full SACK format are not fully
 	implemented.
@@ -205,7 +200,7 @@ Important boundaries are listed below.
 \end{enumerate}
 
 These boundaries are acceptable for a graduation project focused on protocol
-mechanics. They also leave clear directions for future extension.
+mechanics. They also provide clear directions for future extension.
 
 \section{Research Questions}
 The implementation and analysis are organized around practical questions:
@@ -222,19 +217,3 @@ The implementation and analysis are organized around practical questions:
 	(idea-level guidance and debugging support) while preserving original
 	implementation ownership and textbook-grounded correctness?
 \end{enumerate}
-
-	\clearpage
-\section{Report Organization}
-The remainder of this report is structured as follows.
-
-\begin{enumerate}
-	\item Chapter 2 describes protocol design and version-wise implementation
-	details from the foundation phase to the advanced control phase.
-	\item Chapter 3 presents algorithmic foundations and quantitative analysis
-	with equations.
-	\item Chapter 4 provides illustrations, result-oriented tables, practical
-	observations, and final conclusions.
-\end{enumerate}
-
-This structure keeps the narrative simple: design first, analysis second,
-evaluation and insights third.

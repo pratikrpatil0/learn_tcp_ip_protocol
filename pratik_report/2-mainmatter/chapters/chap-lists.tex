@@ -1,22 +1,23 @@
 \chapter{Protocol Design and Implementation}
 
-This chapter presents the full version-by-version protocol evolution. The
-implementation strategy is incremental. Each new version keeps previous
-capabilities and introduces one or more carefully selected features. This
-approach improves correctness and makes debugging practical.
+In this chapter, we will discuss the complete version to version protocol
+evolution. The Strategy we will implement is incremental. Each version of the
+protocol retains all of the capabilities from prior versions, however each new
+version introduces at least one carefully selected feature. Thus, this method
+provides increased source correctness and also provides a greater practical
+capability to debug individual implementations.
 
 \section{Global Design Principles}
 The same design principles are followed across all versions.
 
 \begin{enumerate}
-    \item \textbf{Single responsibility per stage:} each version focuses on a
-    specific protocol concept.
-    \item \textbf{Explicit state:} sender and receiver maintain clearly named
-    variables for sequence numbers, timeouts, and window state.
-    \item \textbf{Deterministic transitions:} packet receipt leads to a defined
-    state update path.
-    \item \textbf{Traceable behavior:} console output helps validate the
-    protocol timeline in each test run.
+    \item \textbf{One focus at a time:} each version teaches one protocol idea.
+    \item \textbf{Clear state:} sender and receiver keep simple names for
+    sequence numbers, timeouts, and window state.
+    \item \textbf{Predictable moves:} each packet leads to a known state
+    change.
+    \item \textbf{Easy to trace:} console output makes each test run easier to
+    follow.
 \end{enumerate}
 
 \clearpage
@@ -28,10 +29,10 @@ In level 0, the sender sends one bit to the receiver using a UDP datagram.
 There is no framing beyond the single value. This version validates:
 
 \begin{enumerate}
-    \item socket creation,
-    \item destination addressing,
-    \item datagram transmission,
-    \item datagram reception.
+    \item create the socket,
+    \item point it to the receiver,
+    \item send the datagram,
+    \item receive the datagram.
 \end{enumerate}
 
 This step is intentionally minimal and prepares the path for structured packet
@@ -65,7 +66,7 @@ design.
 \node[align=center] at (6,-1.35) {No framing, no ACK/NAK, no retransmission\\(only basic UDP send and receive path)};
 \end{tikzpicture}%
 }
-\caption{Version 0 architecture: single-bit UDP transmission from sender to receiver.
+\caption{Version 0: one bit sent over UDP.
 }
 \label{fig:v0-architecture}
 \end{figure}
@@ -79,9 +80,9 @@ in local runs.
 
 Educational value:
 \begin{enumerate}
-    \item understanding of binary representation,
-    \item significance of bit order,
-    \item reconstruction logic at receiver side.
+    \item seeing how binary values are stored,
+    \item learning why bit order matters,
+    \item rebuilding the byte at the receiver.
 \end{enumerate}
 
 \vspace{1.25\baselineskip}
@@ -116,15 +117,15 @@ Educational value:
 \node[align=center] at (6,-2.45) {Datagram stream: bit\_7, bit\_6, ..., bit\_0\\Short sleep intervals help preserve local ordering during experiments};
 \end{tikzpicture}%
 }
-\caption{Version 1 architecture: one character transmitted as eight UDP bit-datagrams and reconstructed at receiver side.
+\caption{Version 1 architecture: one character transmitted as eight UDP bit datagrams and reconstructed at receiver side.
 }
 \label{fig:v1-architecture}
 \end{figure}
 
 \clearpage
 \subsection{Version 2: Full String by Bit Stream}
-Level 2 extends the bit-stream approach to full strings. A null character is
-sent at the end to mark message completion. At this stage, communication works
+Level 2 extends the bit stream approach to full strings. A null character is
+sent at the end to flag message completion. At this stage, communication works
 for complete user input, but no error detection or reliability control exists.
 
 \vspace{0.75\baselineskip}
@@ -177,7 +178,7 @@ Outcome:
     \item corruption cannot yet be corrected.
 \end{enumerate}
 
-Parity is simple and fast but weak against many multi-bit error patterns.
+Parity is simple and fast but weak against many multi bit error patterns.
 
 \vspace{1.5\baselineskip}
 \begin{figure}[h!]
@@ -211,14 +212,14 @@ Parity is simple and fast but weak against many multi-bit error patterns.
 \node[align=center] at (6,-2.45) {Parity mismatch indicates corruption can be detected\\No correction and no retransmission in this version};
 \end{tikzpicture}%
 }
-\caption{Version 3 architecture: parity-based corruption detection over UDP payload transfer.
+\caption{Version 3 architecture: parity based corruption detection over UDP payload transfer.
 }
 \label{fig:v3-architecture}
 \end{figure}
 
 \clearpage
 \subsection{Version 4: Sequence Numbers}
-Level 4 attaches sequence numbers to per-character transfer. This improves
+Level 4 attaches sequence numbers to per character transfer. This improves
 observability and creates the basis for reliable acknowledgement logic.
 
 \vspace{1.5\baselineskip}
@@ -253,7 +254,7 @@ observability and creates the basis for reliable acknowledgement logic.
 \node[align=center] at (6,-2.45) {Sequence numbers increase observability of packet order and duplicates\\This stage prepares state tracking needed for ACK-based reliability};
 \end{tikzpicture}%
 }
-\caption{Version 4 architecture: sequence-numbered UDP units for order visibility and reliability groundwork.
+\caption{Version 4 architecture: sequence numbered UDP units for order visibility and reliability groundwork.
 }
 \label{fig:v4-architecture}
 \end{figure}
@@ -359,13 +360,13 @@ This version is the first practically robust design under packet loss.
 \node[align=center] at (6,-2.55) {Timeout prevents indefinite waiting; retries improve robustness under loss\\Receiver sequence tracking prevents duplicate delivery};
 \end{tikzpicture}%
 }
-\caption{Version 6 architecture: timeout-driven retransmission with duplicate-safe receiver handling.
+\caption{Version 6 architecture: timeout driven retransmission with duplicate safe receiver handling.
 }
 \label{fig:v6-architecture}
 \end{figure}
 
 \clearpage
-\subsection{Version 7: Struct-Based Packetization}
+\subsection{Version 7: Struct Based Packetization}
 Version 7 replaces loose fields with an explicit packet structure:
 \begin{enumerate}
     \item sequence number,
@@ -411,7 +412,7 @@ multi-field TCP-like packets in later levels.
 \node[align=center] at (7.6,-2.75) {Version 7 unifies metadata and payload into one explicit structure\\Cleaner parsing reduces mismatch between sender and receiver logic};
 \end{tikzpicture}%
 }
-\caption{Version 7 architecture: struct-based packetization with unified sender and receiver parsing flow.
+\caption{Version 7 architecture: struct based packetization with unified sender and receiver parsing flow.
 }
 \label{fig:v7-architecture}
 \end{figure}
@@ -429,7 +430,7 @@ Level 8 includes:
     \item FIN for graceful close.
 \end{enumerate}
 
-The sender and receiver perform a simplified three-way handshake and teardown.
+The sender and receiver perform a simplified three way handshake and teardown.
 Checksum is also introduced at this level for stronger integrity checks.
 
 \vspace{1.5\baselineskip}
@@ -474,17 +475,19 @@ Checksum is also introduced at this level for stronger integrity checks.
 \node[align=center] at (8.1,-3.35) {Version 8 adds handshake lifecycle (SYN, ACK, FIN) and per-frame checksum verification\\This is the first step toward TCP-like connection semantics in the project};
 \end{tikzpicture}%
 }
-\caption{Version 8 architecture: handshake flags, lifecycle control, and checksum-protected data flow.
+\caption{Version 8 architecture: handshake flags, lifecycle control, and checksum protected data flow.
 }
 \label{fig:v8-architecture}
 \end{figure}
 
 \clearpage
 \subsection{Version 9: Sliding Window (Go-Back-N Style)}
-Version 9 increases efficiency with a sender window (typical size 4). Sender
-may transmit multiple packets before waiting for ACKs. On timeout, packets from
-base are retransmitted. Receiver sends cumulative-like ACK behavior based on
-expected sequence.
+In version 9, an increase in efficiency has been implemented using a "sender
+window" (4 packets typically), where the sender can send multiple packets
+before receiving an ACK. If the sender does not receive an ACK after a
+timeout, it will re-send packets from the base. The receiver will also use a
+cumulative ACK-style mechanism to acknowledge the last-sequence number
+received by the sender.
 
 This level marks a major throughput jump because waiting time is amortized.
 
@@ -527,7 +530,7 @@ This level marks a major throughput jump because waiting time is amortized.
 \node[align=center] at (8.0,-3.35) {Version 9 pipelines multiple packets before ACK wait, improving throughput\\Cumulative ACK plus timeout-from-base retransmission defines Go-Back-N behavior};
 \end{tikzpicture}%
 }
-\caption{Version 9 architecture: sliding window pipelining with cumulative ACK and timeout-based retransmission.
+\caption{Version 9 architecture: sliding window pipelining with cumulative ACK and timeout based retransmission.
 }
 \label{fig:v9-architecture}
 \end{figure}
@@ -539,11 +542,11 @@ bytes. Benefits:
 
 \begin{enumerate}
     \item fewer packets for same message length,
-    \item less per-packet header overhead,
+    \item less per packet header overhead,
     \item better throughput for moderate messages.
 \end{enumerate}
 
-Receiver logic starts supporting in-window buffering, enabling transition to
+Receiver logic starts supporting in window buffering, enabling transition to
 selective-repeat style delivery in the next family.
 
 \vspace{1.5\baselineskip}
@@ -585,7 +588,7 @@ selective-repeat style delivery in the next family.
 \node[align=center] at (8.3,-4.05) {Version 10 increases per-packet payload using fixed-size chunks, reducing header overhead\\Receiver buffering prepares transition to selective-repeat style delivery};
 \end{tikzpicture}%
 }
-\caption{Version 10 architecture: chunk-based payload transfer with in-window buffering and ordered reassembly.
+\caption{Version 10 architecture: chunk based payload transfer with in-window buffering and ordered reassembly.
 }
 \label{fig:v10-architecture}
 \end{figure}
@@ -594,14 +597,14 @@ selective-repeat style delivery in the next family.
 \section{Version Family D: Selective Repeat and Adaptive Control (v11--v14)}
 Family D contains the most advanced protocol behavior in this project.
 
-\subsection{Version 11: Selective-Repeat-Like Buffering}
+\subsection{Version 11: Selective-Repeat Like Buffering}
 Receiver stores out-of-order chunks in buffers and delivers data in order when
-missing sequence arrives. This avoids unnecessary retransmission of already
+missing sequence arrives. This avoids unnecessary retransmission of
 received data and improves behavior under reordering.
 
 Key receiver structures include:
 \begin{enumerate}
-    \item packet-received flags,
+    \item packet received flags,
     \item chunk data buffer,
     \item chunk length metadata,
     \item expected sequence tracker.
@@ -646,17 +649,14 @@ Key receiver structures include:
 \node[align=center] at (8.0,-3.45) {Version 11 stores out-of-order chunks and avoids unnecessary retransmission\\Receiver-side tracking enables selective-repeat-like reliability behavior};
 \end{tikzpicture}%
 }
-\caption{Version 11 architecture: selective-repeat-like buffering with out-of-order storage and in-order delivery.
+\caption{Version 11 architecture: selective-repeat like buffering with out-of-order storage and in-order delivery.
 }
 \label{fig:v11-architecture}
 \end{figure}
 
 \clearpage
 \subsection{Version 12: Adaptive RTO Estimation}
-Version 12 introduces RTT sampling and adaptive RTO calculation. Fixed timeout
-works poorly in variable-delay conditions. Adaptive timeout adjusts retransmit
-threshold dynamically and reduces both premature retransmits and long idle
-waits.
+Version 12 introduces RTT sampling and adaptive RTO calculation. The fixed timeout mechanism does not perform well when the delay between sending and receiving packets is variable. The adaptive timeout mechanism adapts the retransmit threshold dynamically, thereby reducing both premature retransmissions and prolonged idle periods before initiating a retransmission.
 
 \vspace{1.5\baselineskip}
 \begin{figure}[h!]
@@ -697,7 +697,7 @@ waits.
 \node[align=center] at (8.0,-4.45) {Version 12 adapts timeout from observed RTT behavior under changing delay\\This reduces premature retransmits and long idle waiting periods};
 \end{tikzpicture}%
 }
-\caption{Version 12 architecture: RTT sampling with adaptive RTO control for variable-delay conditions.
+\caption{Version 12 architecture: RTT sampling with adaptive RTO control for variable delay conditions.
 }
 \label{fig:v12-architecture}
 \end{figure}
@@ -756,10 +756,10 @@ sending.
 
 \draw[cong] (robs.south west) -- ++(-2.8,0) |- node[pos=0.48, above, align=center, fill=white, inner sep=1pt]{loss indication cut rate\\adjust ssthresh and cwnd} (sgrow.south east);
 
-\node[align=center] at (8.8,-5.35) {Version 13 introduces congestion-aware growth and backoff using cwnd and ssthresh\\Fast growth in slow start transitions to stable additive growth under congestion avoidance};
+\node[align=center] at (8.8,-5.35) {Version 13 introduces congestion aware growth and backoff using cwnd and ssthresh\\Fast growth in slow start transitions to stable additive growth under congestion avoidance};
 \end{tikzpicture}%
 }
-\caption{Version 13 architecture: congestion window growth, ACK clocking, and loss-triggered rate reduction.
+\caption{Version 13 architecture: congestion window growth, ACK clocking, and loss triggered rate reduction.
 }
 \label{fig:v13-architecture}
 \end{figure}
@@ -768,17 +768,17 @@ sending.
 \subsection{Version 14: Fast Retransmit and Fast Recovery}
 Version 14 is the most complete implementation within Family D.
 The project then continues through versions 15--24, which extend this baseline
-with more advanced adaptive and Reno-like refinements.
+with more advanced adaptive and Reno like refinements.
 Enhancements include:
 
 \begin{enumerate}
     \item duplicate ACK counting,
-    \item triple-duplicate-ACK loss inference,
+    \item triple duplicate ACK loss inference,
     \item fast retransmission without waiting for timeout,
-    \item temporary fast-recovery window inflation and controlled deflation.
+    \item temporary fast recovery window inflation and controlled deflation.
 \end{enumerate}
 
-This behavior closely resembles a learning-scale version of TCP Reno.
+This behavior closely resembles a learning scale version of TCP Reno.
 
 \vspace{1.5\baselineskip}
 \begin{figure}[h!]
@@ -819,32 +819,18 @@ This behavior closely resembles a learning-scale version of TCP Reno.
 \node[align=center] at (9.2,-6.1) {Version 14 adds fast retransmit and fast recovery to react before timeout\\This improves responsiveness while maintaining controlled congestion behavior};
 \end{tikzpicture}%
 }
-\caption{Version 14 architecture: duplicate-ACK loss inference with fast retransmit and fast recovery control.
+\caption{Version 14 architecture: duplicate ACK loss inference with fast retransmit and fast recovery control.
 }
 \label{fig:v14-architecture}
 \end{figure}
 
 \clearpage
-\section{Version Family E: Adaptive and Reno-Like Extensions (v15--v24)}
-The later versions extend the same transport story into a more advanced and
-educational TCP-like space. This family focuses on RTT-sensitive timeout
-refinement, timestamp-oriented state awareness, SACK-like reasoning,
-congestion-avoidance behavior, and improved recovery handling. The visualizer
-also uses these later versions to show how the FSM and UML timeline can be used
-to explain protocol decisions step by step.
+\section{Version Family E: Adaptive and Reno Like Extensions (v15--v24)}
+The latter versions advance the transport process into a more sophisticated and educational TCP-like environment. This family emphasizes RTT-sensitive refinement of timeouts, state awareness based on timestamps, SACK-like reasoning, avoiding congestion, and improved recovery procedure. The visualizer uses later versions of the project to demonstrate on a step by step basis how the FSM and UML timeline can assist in explaining protocol decisions.
 
-The primary design inspiration for this family comes from the RFCs and books
-that describe TCP evolution in practice. In particular, RFC 6298 explains the
-retransmission timer, RFC 5681 covers congestion control behavior, RFC 2018
-describes selective acknowledgment options, RFC 7323 covers TCP extensions for
-high performance, and RFC 793 provides the core TCP model. The implementation
-style is also informed by Stevens, Kurose and Ross, and Tanenbaum and
-Wetherall, because those texts help connect protocol theory with the concrete
-sender and receiver code structure used in the project \cite{rfc6298,rfc5681,rfc2018,rfc7323,rfc793,stevens_tcpip,kurose_ross,tanenbaum_wetherall}.
+The RFCs and texts that describe TCP in practice provide the main design inspiration for this family. The RFC 6298 describes the retransmission timer, RFC 5681 describes congestion avoidance, RFC 2018 provides options for selective acknowledgment (SACK). TCP extensions for high speed are found in RFC 7323, and RFC 793 provides the core TCP model. Additionally, the Stevens, Kurose and Ross, and Tanenbaum and Wetherall texts (used for the implementation style) make it easier to relate TCP theory to the actual sender and receiver code structure used in the project Passport et al. (2011); Allman et al. (2009); Mathis et al. (1996); Borman et al. (2014); Postel (1981); Stevens and Wright (1995); Kurose and Ross (2021); Tanenbaum and Wetherall (2011).
 
-This family is especially valuable in the report because it shows the point at
-which the learning project becomes visually and conceptually close to real TCP
-thinking, while still remaining simple enough for students to trace manually.
+This family is very useful to the report because it demonstrates the moment when the learning project approaches real TCP thought processes both visually and conceptually.
 
 \clearpage
 \subsection{Version 15: RTT-Smoothed Timeout Refinement}
@@ -884,7 +870,7 @@ RTO with a more disciplined estimator so sender retries are less noisy.
 \draw[ack] (r2.north west) -- ++(-5.0,0) |- node[pos=0.34, left, fill=white, inner sep=1pt]{ACK timing} (s1.north east);
 \end{tikzpicture}%
 }
-\caption{Version 15 architecture: smoothed RTT-driven retransmission timeout refinement.}
+\caption{Version 15 architecture: smoothed RTT driven retransmission timeout refinement.}
 \label{fig:v15-architecture}
 \end{figure}
 
@@ -926,13 +912,13 @@ stabilizes, throughput is allowed to grow safely.
 \draw[ack] (r2.north west) -- ++(-5.6,0) |- node[pos=0.36, left, fill=white, inner sep=1pt]{ACK rhythm and gap hints} (s1.north east);
 \end{tikzpicture}%
 }
-\caption{Version 16 architecture: timeout-aware adaptive window control.}
+\caption{Version 16 architecture: timeout aware adaptive window control.}
 \label{fig:v16-architecture}
 \end{figure}
 
 \clearpage
 \subsection{Version 17: Timestamp Option Integration}
-Version 17 introduces timestamp-style metadata in packet exchange so sender can
+Version 17 introduces timestamp style metadata in packet exchange so sender can
 infer timing more directly and avoid ambiguous retransmission decisions.
 
 \begin{figure}[h!]
@@ -967,7 +953,7 @@ infer timing more directly and avoid ambiguous retransmission decisions.
 \draw[ack] (r2.north west) -- ++(-5.0,0) |- node[pos=0.35, left, fill=white, inner sep=1pt]{ACK with ts echo} (s1.north east);
 \end{tikzpicture}%
 }
-\caption{Version 17 architecture: timestamp insertion and echo-aware feedback loop.}
+\caption{Version 17 architecture: timestamp insertion and echo aware feedback loop.}
 \label{fig:v17-architecture}
 \end{figure}
 
@@ -1014,8 +1000,8 @@ already received data.
 \end{figure}
 
 \clearpage
-\subsection{Version 19: Congestion-Avoidance Stabilization}
-Version 19 strengthens congestion-avoidance transitions. The sender responds to
+\subsection{Version 19: Congestion Avoidance Stabilization}
+Version 19 strengthens congestion avoidance transitions. The sender responds to
 loss and delay pressure with smoother cwnd behavior, reducing oscillation while
 keeping reasonable throughput.
 
@@ -1051,7 +1037,7 @@ keeping reasonable throughput.
 \draw[ack] (r2.north west) -- ++(-5.8,0) |- node[pos=0.35, left, fill=white, inner sep=1pt]{ACK feedback and DupACK events} (s1.north east);
 \end{tikzpicture}%
 }
-\caption{Version 19 architecture: stabilized congestion-avoidance behavior with ACK-clocked feedback.}
+\caption{Version 19 architecture: stabilized congestion avoidance behavior with ACK clocked feedback.}
 \label{fig:v19-architecture}
 \end{figure}
 
@@ -1142,7 +1128,7 @@ across difficult traffic patterns.
 \clearpage
 \subsection{Version 22: Receiver Reassembly and Delivery Hardening}
 Version 22 strengthens the receiver side by improving buffering, gap filling,
-and reassembly commit rules. This reduces edge-case delivery mistakes when
+and reassembly commit rules. This reduces edge case delivery mistakes when
 packets arrive late, duplicated, or out of order.
 
 \begin{figure}[h!]
@@ -1226,8 +1212,8 @@ behavior under mixed delay, reordering, and burst loss.
 \clearpage
 \subsection{Version 24: Final Integrated Transport Stage}
 Version 24 is the final integrated stage of the project. It combines the full
-set of educational transport features: adaptive timing, congestion-aware
-windows, timestamp-aware feedback, SACK-inspired loss hints, and controlled
+set of educational transport features: adaptive timing, congestion aware
+windows, timestamp aware feedback, SACK inspired loss hints, and controlled
 recovery behavior.
 
 \begin{figure}[h!]
@@ -1269,13 +1255,7 @@ recovery behavior.
 \clearpage
 \subsection{Family E Summary}
 Versions 15--24 complete the transition from a staged classroom transport model
-to an integrated TCP-inspired system. The sequence shows how timing, selective
-feedback, congestion awareness, and structured recovery can be layered without
-losing traceability for learners.
+to an integrated TCP-inspired system. This illustrates how the use of timing, selective feedback, congestion awareness and systematic recovery can be added in layers while maintaining traceability for learners.
 
 \section{Chapter Summary}
-This chapter explained how the full project evolves from a basic UDP demo to a
-rich transport protocol laboratory. The next chapter formalizes the main
-algorithms with equations and analysis so that implementation behavior can be
-understood quantitatively.understood quantitatively. Chapter 4 then presents detailed measurements,
-comparison tables, and visual timelines to complete the educational narrative.
+This chapter described the stage changes of the entire project starting from merely a UDP demo until eventually evolving into a comprehensive transport protocol lab. The following chapter details the mathematical algorithms and equations used to define the process of implementation from a quantitative perspective. Finally, Chapter 4 will conclude with all of the empirical data, analysis and visual timeline findings to finalize the educational narrative.
