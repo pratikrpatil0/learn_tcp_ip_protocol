@@ -355,139 +355,49 @@ export default function GradPresentationPage() {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 pb-10">
+      <div className="grid grid-cols-1 gap-8 flex-1 pb-10 h-full">
         {/* Left Column: Theory & References */}
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
+        <div className="space-y-6 flex flex-col flex-1 h-full">
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-            <h3 className="text-xl font-bold text-blue-200 mb-3 flex items-center gap-2">
-              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">
-                1
-              </span>{" "}
+            <h3 className="text-xl font-bold text-blue-200 mb-4 flex items-center gap-2">
+              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">1</span>
               Problem Statement & Theory
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              <strong>The Problem:</strong> How do we fundamentally send data
-              from Point A to Point B across a network? <br />
-              <br />
-              <strong>The Theory:</strong> At this extreme basic level, we
-              assume a perfectly reliable channel (no packet loss or bit
-              errors). The real UDP network is unreliable, but Version 0 naively
-              pretends the wire is perfect.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
-            <h3 className="text-xl font-bold text-indigo-200 mb-3 flex items-center gap-2">
-              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">
-                2
-              </span>{" "}
-              How Version 0 Solves It
-            </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              It simply establishes the core C socket architecture. It provides
-              no reliability, but it completely solves the basic connection
-              requirement. The sender packs a payload and shoots it out; the
-              receiver acts as a passive bucket catching whatever arrives.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
-            <h3 className="text-xl font-bold text-teal-200 mb-3 flex items-center gap-2">
-              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">
-                3
-              </span>{" "}
-              Textbook References
-            </h3>
-            <ul className="text-slate-300 leading-relaxed font-light space-y-3 list-none">
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>Kurose &amp; Ross Book:</strong> Chapter 3.4.1
-                  (Principles of Reliable Data Transfer -{" "}
-                  <em>RDT 1.0 over a perfectly reliable channel</em>).
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>Beej's Guide to Network Programming:</strong>{" "}
-                  Client-Server Datagram Sockets.
-                </span>
-              </li>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• How to send data from Point A to B across network?</li>
+              <li>• Assume perfectly reliable channel (no loss, no errors)</li>
+              <li>• UDP is unreliable, but we pretend it's perfect</li>
+              <li>• Baseline for all reliability mechanisms</li>
             </ul>
           </div>
-        </div>
 
-        {/* Right Column: Code & Implementation */}
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
-            <h3 className="text-xl font-bold text-purple-200 mb-3 flex items-center gap-2">
-              <span className="bg-purple-500/20 px-2 py-1 rounded text-sm">
-                4
-              </span>{" "}
-              Code Logics Used
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
+            <h3 className="text-xl font-bold text-indigo-200 mb-4 flex items-center gap-2">
+              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">2</span>
+              How Version 0 Solves It
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light mb-3">
-              Utilized basic <strong>POSIX network memory buffers in C</strong>.
-              There are strictly no timers, no checksum calculations, and no
-              sequence numbers. Both the sender and receiver run in basic
-              blocking mode.
-            </p>
-            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-700/50">
-              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2">
-                Finite State Machine (FSM)
-              </h4>
-              <div className="flex flex-col gap-3 text-xs md:text-sm font-mono text-center">
-                <div className="bg-indigo-900/30 p-3 rounded-lg border border-indigo-700/50 text-indigo-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                  <span className="font-bold text-indigo-200 block mb-2 border-b border-indigo-700/50 inline-block pb-1">
-                    SENDER FSM
-                  </span>
-                  <br />
-                  [Wait for Data] → [Packetize] → [Send] → [Wait]
-                </div>
-                <div className="bg-blue-950/40 p-3 rounded-lg border border-blue-800/50 text-blue-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                  <span className="font-bold text-blue-200 block mb-2 border-b border-blue-800/50 inline-block pb-1">
-                    RECEIVER FSM
-                  </span>
-                  <br />
-                  [Wait for Packet] → [Extract] → [Deliver] → [Wait]
-                </div>
-              </div>
-            </div>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Create UDP sockets for sender & receiver</li>
+              <li>• Sender: pack payload → sendto() → trust delivery</li>
+              <li>• Receiver: bind to port → recvfrom() loop</li>
+              <li>• No timers, no ACKs, no error checking</li>
+              <li>• Core C socket architecture established</li>
+            </ul>
           </div>
 
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-            <h3 className="text-xl font-bold text-amber-200 mb-3 flex items-center gap-2">
-              <span className="bg-amber-500/20 px-2 py-1 rounded text-sm">
-                5
-              </span>{" "}
-              Launch Point
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
+            <h3 className="text-xl font-bold text-teal-200 mb-4 flex items-center gap-2">
+              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">3</span>
+              Textbook References
             </h3>
-            <ol className="text-slate-300 leading-relaxed font-mono space-y-4 list-decimal pl-6 text-sm tracking-wide">
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  Interactive Visualizer
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Open the same UI engine used in the simulator, but filtered to
-                  the five demo versions.
-                </span>
-              </li>
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  Five Versions Only
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  The demo focuses on versions 0, 5, 10, 15, and 24 so the
-                  progression stays clear during presentation.
-                </span>
-              </li>
-            </ol>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• <strong>Kurose & Ross:</strong> Ch 3.1-3.2, 3.4 (RDT 1.0)</li>
+              <li>• <strong>UDP (RFC 768):</strong> Connectionless datagram service</li>
+              <li>• <strong>Beej's Guide:</strong> Socket APIs, UDP patterns</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -495,13 +405,13 @@ export default function GradPresentationPage() {
     // Slide 8: Version 5
     <div
       key="8"
-      className="flex flex-col h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto custom-scrollbar"
+      className="flex flex-col justify-start h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto max-h-screen custom-scrollbar"
     >
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 shrink-0 pb-4 border-b border-white/10 gap-4">
         <div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300 tracking-tight">
-          <span>Open 5-Files Demo</span>
+            Version 5: Error Detection & ARQ (Automatic Repeat reQuest)
           </h2>
           <div className="h-1.5 w-32 bg-gradient-to-r from-blue-500 to-indigo-500 mt-4 rounded-full"></div>
         </div>
@@ -527,130 +437,48 @@ export default function GradPresentationPage() {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 pb-10">
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
+      <div className="grid grid-cols-1 gap-8 flex-1 pb-10 h-full">
+        <div className="space-y-6 flex flex-col flex-1 h-full">
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-            <h3 className="text-xl font-bold text-blue-200 mb-3 flex items-center gap-2">
-              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">
-                1
-              </span>{" "}
+            <h3 className="text-xl font-bold text-blue-200 mb-4 flex items-center gap-2">
+              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">1</span>
               Problem Statement & Theory
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              <strong>The Problem:</strong> Real network wires are noisy. What
-              happens if interference causes bits to randomly flip (0 becomes
-              1)? <br />
-              <br />
-              <strong>The Theory:</strong> We introduce Automatic Repeat reQuest
-              (ARQ) and Error Detection. We use a Parity Check bit per byte to
-              detect corruption.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
-            <h3 className="text-xl font-bold text-indigo-200 mb-3 flex items-center gap-2">
-              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">
-                2
-              </span>{" "}
-              How Version 5 Solves It
-            </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              We shifted to bit-by-bit transmission over UDP. The sender
-              calculates an XOR parity. The receiver performs the same
-              calculation; if it matches, it sends an <strong>ACK</strong>{" "}
-              (Acknowledge). If the parity fails, it drops it and sends a{" "}
-              <strong>NAK</strong> (Negative Acknowledge) triggering a
-              retransmission.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
-            <h3 className="text-xl font-bold text-teal-200 mb-3 flex items-center gap-2">
-              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">
-                3
-              </span>{" "}
-              Textbook References
-            </h3>
-            <ul className="text-slate-300 leading-relaxed font-light space-y-3 list-none">
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>Kurose & Ross Book:</strong> Chapter 3.4.1 (RDT 2.0 -{" "}
-                  <em>Channel with Bit Errors</em>).
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>Reliability:</strong> Introduces Checksums, ACKs, and
-                  NAKs natively.
-                </span>
-              </li>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Real networks are noisy—bits flip randomly</li>
+              <li>• Electromagnetic interference corrupts packets</li>
+              <li>• Need error detection mechanism</li>
+              <li>• Parity check: simple XOR-based detection</li>
             </ul>
           </div>
-        </div>
 
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
-            <h3 className="text-xl font-bold text-purple-200 mb-3 flex items-center gap-2">
-              <span className="bg-purple-500/20 px-2 py-1 rounded text-sm">
-                4
-              </span>{" "}
-              Code Logics Used
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
+            <h3 className="text-xl font-bold text-indigo-200 mb-4 flex items-center gap-2">
+              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">2</span>
+              How Version 5 Solves It
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light mb-3">
-              We wrote bitwise shifting arithmetic to parse out a{" "}
-              <code>char parity ^= ((byte &gt;&gt; i) &amp; 1)</code> bit.
-              Implemented blocking wait states exclusively waiting for feedback
-              bytes.
-            </p>
-            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-700/50">
-              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2">
-                Finite State Machine (FSM)
-              </h4>
-              <div className="flex flex-col gap-3 text-xs md:text-sm font-mono text-center">
-                <div className="bg-indigo-900/30 p-3 rounded-lg border border-indigo-700/50 text-indigo-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                  <span className="font-bold text-indigo-200 block mb-2 border-b border-indigo-700/50 inline-block pb-1">
-                    SENDER FSM
-                  </span>
-                  <br />
-                  [Send Data w/ Parity] → [Wait for ACK/NAK] → (If NAK:
-                  Retransmit)
-                </div>
-              </div>
-            </div>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Bit-by-bit transmission with parity</li>
+              <li>• Sender: compute XOR parity → send</li>
+              <li>• Receiver: recompute parity independently</li>
+              <li>• Match = ACK, Mismatch = NAK (retransmit)</li>
+              <li>• Stop-and-wait protocol (simple, slow)</li>
+            </ul>
           </div>
 
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-            <h3 className="text-xl font-bold text-amber-200 mb-3 flex items-center gap-2">
-              <span className="bg-amber-500/20 px-2 py-1 rounded text-sm">
-                5
-              </span>{" "}
-              Crucial Engineering Steps
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
+            <h3 className="text-xl font-bold text-teal-200 mb-4 flex items-center gap-2">
+              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">3</span>
+              Textbook References
             </h3>
-            <ol className="text-slate-300 leading-relaxed font-mono space-y-4 list-decimal pl-6 text-sm tracking-wide">
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  Bitwise XOR
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Used manual 8-bit shifts to generate parity checks.
-                </span>
-              </li>
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  ACK / NAK Generation
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Receiver actively replies to sender socket.
-                </span>
-              </li>
-            </ol>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• <strong>Kurose & Ross:</strong> Ch 3.4.2 (RDT 2.0)</li>
+              <li>• <strong>ARQ Protocols:</strong> ACK/NAK feedback</li>
+              <li>• <strong>Parity/Checksums:</strong> Error detection</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -658,7 +486,7 @@ export default function GradPresentationPage() {
     // Slide 9: Version 10
     <div
       key="9"
-      className="flex flex-col h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto custom-scrollbar"
+      className="flex flex-col justify-start h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto max-h-screen custom-scrollbar"
     >
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 shrink-0 pb-4 border-b border-white/10 gap-4">
@@ -690,123 +518,48 @@ export default function GradPresentationPage() {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 pb-10">
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
+      <div className="grid grid-cols-1 gap-8 flex-1 pb-10 h-full">
+        <div className="space-y-6 flex flex-col flex-1 h-full">
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-            <h3 className="text-xl font-bold text-blue-200 mb-3 flex items-center gap-2">
-              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">
-                1
-              </span>{" "}
+            <h3 className="text-xl font-bold text-blue-200 mb-4 flex items-center gap-2">
+              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">1</span>
               Problem Statement & Theory
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              <strong>The Problem:</strong> What if a packet is entirely lost
-              (not physically corrupted) or duplicated? Parity fails if the
-              packet never arrives. <br />
-              <br />
-              <strong>The Theory:</strong> We graduate to a lossy channel with
-              errors. We add <strong>Sequence Numbers</strong> to prevent
-              duplicates, a <strong>Timer/RTO</strong> (Retransmission TimeOut),
-              and a <strong>Sliding Window</strong> for pipelining so we don't
-              send just 1 packet at a time.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
-            <h3 className="text-xl font-bold text-indigo-200 mb-3 flex items-center gap-2">
-              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">
-                2
-              </span>{" "}
-              How Version 10 Solves It
-            </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              Introduced an explicit strict <code>WINDOW_SIZE=4</code>{" "}
-              pipelining loop, and a fixed timeout of <code>350ms</code>. Added
-              flag abstractions like <strong>SYN, ACK, FIN</strong> to manage
-              connection teardown mimicking actual TCP state logic.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
-            <h3 className="text-xl font-bold text-teal-200 mb-3 flex items-center gap-2">
-              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">
-                3
-              </span>{" "}
-              Textbook References
-            </h3>
-            <ul className="text-slate-300 leading-relaxed font-light space-y-3 list-none">
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>Kurose & Ross Book:</strong> RDT 3.0 (Channels with
-                  errors and loss) & Pipelined Protocols (Go-Back-N / Selective
-                  Repeat).
-                </span>
-              </li>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Parity only detects bit errors, not lost packets</li>
+              <li>• Duplicate packets confuse receiver</li>
+              <li>• One packet at a time is inefficient</li>
+              <li>• Need timeouts, sequence numbers, pipelining</li>
             </ul>
           </div>
-        </div>
 
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
-            <h3 className="text-xl font-bold text-purple-200 mb-3 flex items-center gap-2">
-              <span className="bg-purple-500/20 px-2 py-1 rounded text-sm">
-                4
-              </span>{" "}
-              Code Logics Used
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
+            <h3 className="text-xl font-bold text-indigo-200 mb-4 flex items-center gap-2">
+              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">2</span>
+              How Version 10 Solves It
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light mb-3">
-              We abandoned blocking UDP and used tracking arrays checking limits
-              with <code>gettimeofday()</code> against our fixed interval{" "}
-              <code>350ms</code> to trigger a retry.
-            </p>
-            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-700/50">
-              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2">
-                Finite State Machine (FSM)
-              </h4>
-              <div className="flex flex-col gap-3 text-xs md:text-sm font-mono text-center">
-                <div className="bg-blue-950/40 p-3 rounded-lg border border-blue-800/50 text-blue-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                  <span className="font-bold text-blue-200 block mb-2 border-b border-blue-800/50 inline-block pb-1">
-                    SENDER FSM
-                  </span>
-                  <br />
-                  [Transmit Window] → [Start Timer] → [Timeout Hits] →
-                  [Retransmit Lost Seq]
-                </div>
-              </div>
-            </div>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Sequence numbers (0/1) prevent duplicates</li>
+              <li>• 350ms timer detects lost packets</li>
+              <li>• Window size = 4 (pipelined transmission)</li>
+              <li>• SYN/ACK/FIN flags for connection mgmt</li>
+              <li>• Selective Repeat retransmission on timeout</li>
+            </ul>
           </div>
 
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-            <h3 className="text-xl font-bold text-amber-200 mb-3 flex items-center gap-2">
-              <span className="bg-amber-500/20 px-2 py-1 rounded text-sm">
-                5
-              </span>{" "}
-              Crucial Engineering Steps
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
+            <h3 className="text-xl font-bold text-teal-200 mb-4 flex items-center gap-2">
+              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">3</span>
+              Textbook References
             </h3>
-            <ol className="text-slate-300 leading-relaxed font-mono space-y-4 list-decimal pl-6 text-sm tracking-wide">
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  Packet Structs
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Structs containing seq, ack_num, and flags.
-                </span>
-              </li>
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  SO_RCVTIMEO Loop
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Timeout socket config overriding native blocking behavior.
-                </span>
-              </li>
-            </ol>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• <strong>Kurose & Ross:</strong> Ch 3.4.3 (RDT 3.0)</li>
+              <li>• <strong>Pipelined Protocols:</strong> Selective Repeat</li>
+              <li>• <strong>TCP Flags:</strong> SYN, ACK, FIN states</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -814,17 +567,17 @@ export default function GradPresentationPage() {
     // Slide 10: Version 15
     <div
       key="10"
-      className="flex flex-col h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto custom-scrollbar"
+      className="flex flex-col justify-start h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto max-h-screen custom-scrollbar"
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 shrink-0 pb-4 border-b border-white/10 gap-4">
         <div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300 tracking-tight">
-            Version 15: Dynamic RTT, RTO & Slow Start
+            Version 15: Dynamic RTO & Slow-Start
           </h2>
           <div className="h-1.5 w-32 bg-gradient-to-r from-blue-500 to-indigo-500 mt-4 rounded-full"></div>
         </div>
         <a
-          href="http://localhost:3000/demonstration"
+          href="/demonstration"
           className="px-6 py-3 bg-blue-600/90 hover:bg-blue-500 text-white font-bold rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.8)] transition-all flex items-center gap-3 border border-blue-400/30 whitespace-nowrap"
           target="_blank"
         >
@@ -845,114 +598,47 @@ export default function GradPresentationPage() {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 pb-10">
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
+      <div className="grid grid-cols-1 gap-8 flex-1 pb-10 h-full">
+        <div className="space-y-6 flex flex-col flex-1 h-full">
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-            <h3 className="text-xl font-bold text-blue-200 mb-3 flex items-center gap-2">
-              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">
-                1
-              </span>{" "}
+            <h3 className="text-xl font-bold text-blue-200 mb-4 flex items-center gap-2">
+              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">1</span>
               Problem Statement & Theory
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              <strong>The Problem:</strong> A static timeout of 350ms is naive.
-              Sometimes the network is fast (5ms ping), sometimes slow (300ms
-              ping). A fixed timer causes premature retransmissions.
-              <br />
-              <br />
-              <strong>The Theory:</strong> Implemented the Jacobson/Karels
-              algorithm for dynamic RTO estimation (SRTT). Introduced{" "}
-              <strong>CWND</strong> (Congestion Window) enabling network
-              Slow-Start!
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
-            <h3 className="text-xl font-bold text-indigo-200 mb-3 flex items-center gap-2">
-              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">
-                2
-              </span>{" "}
-              How Version 15 Solves It
-            </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              Instead of a fixed size, the window starts at{" "}
-              <code>INIT_CWND=1</code> and exponentially grows to{" "}
-              <code>SSTHRESH=8</code> (Slow Start). Timers adapt continuously
-              based on sampled Round Trip Times.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
-            <h3 className="text-xl font-bold text-teal-200 mb-3 flex items-center gap-2">
-              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">
-                3
-              </span>{" "}
-              Textbook References
-            </h3>
-            <ul className="text-slate-300 leading-relaxed font-light space-y-3 list-none">
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>Kurose & Ross Book:</strong> TCP Connection
-                  Management, Estimated RTT, and TCP Congestion Control (Slow
-                  Start).
-                </span>
-              </li>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Fixed 350ms timeout is too naive</li>
+              <li>• Network latency varies (5ms → 300ms ping)</li>
+              <li>• Need dynamic, adaptive RTO estimation</li>
             </ul>
           </div>
-        </div>
 
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
-            <h3 className="text-xl font-bold text-purple-200 mb-3 flex items-center gap-2">
-              <span className="bg-purple-500/20 px-2 py-1 rounded text-sm">
-                4
-              </span>{" "}
-              Code Logics Used
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-visible shadow-lg backdrop-blur-sm flex-1">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
+            <h3 className="text-xl font-bold text-indigo-200 mb-4 flex items-center gap-2">
+              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">2</span>
+              How Version 15 Solves It
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light mb-3">
-              Calculating{" "}
-              <code>
-                EstimatedRTT = (1-&alpha;)*EstimatedRTT + &alpha;*SampleRTT
-              </code>{" "}
-              exactly as specified in the TCP RFCs.
-            </p>
-            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-700/50">
-              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2">
-                Congestion Control Mechanism
-              </h4>
-              <div className="flex flex-col gap-3 text-xs md:text-sm font-mono text-center">
-                <div className="bg-indigo-900/30 p-3 rounded-lg border border-indigo-700/50 text-indigo-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                  [CWND = 1] → [Receive ACK?] → [CWND *= 2] → [Until SSTHRESH
-                  Hits]
-                </div>
-              </div>
-            </div>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Jacobson/Karels algorithm for dynamic RTO</li>
+              <li>• SRTT (Smoothed Round Trip Time) calculation</li>
+              <li>• CWND (Congestion Window) starts at 1</li>
+              <li>• Exponential growth until SSTHRESH=8</li>
+              <li>• Slow-Start mechanism enabled</li>
+            </ul>
           </div>
 
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-            <h3 className="text-xl font-bold text-amber-200 mb-3 flex items-center gap-2">
-              <span className="bg-amber-500/20 px-2 py-1 rounded text-sm">
-                5
-              </span>{" "}
-              Crucial Engineering Steps
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
+            <h3 className="text-xl font-bold text-teal-200 mb-4 flex items-center gap-2">
+              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">3</span>
+              Textbook References
             </h3>
-            <ol className="text-slate-300 leading-relaxed font-mono space-y-4 list-decimal pl-6 text-sm tracking-wide">
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  RTO Backoff
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  On timeout, double the RTO timeout exponentially up to 1.5s
-                  max.
-                </span>
-              </li>
-            </ol>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• <strong>Kurose & Ross:</strong> Ch 3.5.1-3.5.2</li>
+              <li>• <strong>RTT Estimation:</strong> EWMA algorithm</li>
+              <li>• <strong>RFC 5681:</strong> Slow-Start spec</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -960,12 +646,12 @@ export default function GradPresentationPage() {
     // Slide 11: Version 24
     <div
       key="11"
-      className="flex flex-col h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto custom-scrollbar"
+      className="flex flex-col justify-start h-full w-full p-8 sm:p-12 text-left bg-gradient-to-br from-slate-900 border border-slate-800 via-zinc-900 to-indigo-950 text-white relative overflow-y-auto max-h-screen custom-scrollbar"
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 shrink-0 pb-4 border-b border-white/10 gap-4">
         <div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300 tracking-tight">
-            Version 24: TCP Reno (Congestion Avoidance & Fast Recovery)
+            Version 24: TCP Reno (Fast Retransmit & Fast Recovery)
           </h2>
           <div className="h-1.5 w-32 bg-gradient-to-r from-blue-500 to-indigo-500 mt-4 rounded-full"></div>
         </div>
@@ -991,180 +677,149 @@ export default function GradPresentationPage() {
         </a>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 pb-10">
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
+      <div className="grid grid-cols-1 gap-8 flex-1 pb-10 h-full">
+        <div className="space-y-6 flex flex-col flex-1 h-full">
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
             <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500"></div>
-            <h3 className="text-xl font-bold text-blue-200 mb-3 flex items-center gap-2">
-              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">
-                1
-              </span>{" "}
+            <h3 className="text-xl font-bold text-blue-200 mb-4 flex items-center gap-2">
+              <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">1</span>
               Problem Statement & Theory
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              <strong>The Problem:</strong> Even dynamically estimating a
-              timeout is painfully slow if we just dropped a single packet and
-              we want to retry it instantly. <br />
-              <br />
-              <strong>The Theory:</strong> <strong>TCP Reno</strong> RFC
-              Specification. Introduces <strong>Fast Retransmit</strong> (3
-              duplicate ACKs fires a retransmit ignoring the timer) and{" "}
-              <strong>Fast Recovery</strong>.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
-            <h3 className="text-xl font-bold text-indigo-200 mb-3 flex items-center gap-2">
-              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">
-                2
-              </span>{" "}
-              How Version 24 Solves It
-            </h3>
-            <p className="text-slate-300 leading-relaxed font-light">
-              This is the final state of the art! Wait states like{" "}
-              <code>TIME_WAIT</code> for safe connection teardown,{" "}
-              <code>PERSIST_PROBE</code> to handle window size zero conditions,
-              Fast Recovery to avoid dropping CWND down to 1.
-            </p>
-          </div>
-
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
-            <h3 className="text-xl font-bold text-teal-200 mb-3 flex items-center gap-2">
-              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">
-                3
-              </span>{" "}
-              Textbook References
-            </h3>
-            <ul className="text-slate-300 leading-relaxed font-light space-y-3 list-none">
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>IETF Standards:</strong> RFC 2581 / RFC 5681 (TCP
-                  Congestion Control).
-                </span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-teal-400 mt-1">▶</span>
-                <span>
-                  <strong>Kurose & Ross Book:</strong> Chapter 3.5.4 (TCP Tahoe
-                  vs TCP Reno Evolution).
-                </span>
-              </li>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Even dynamic RTO is still too slow</li>
+              <li>• Timeout delays retransmission significantly</li>
+              <li>• Duplicate ACKs indicate packet loss sooner</li>
+              <li>• Need Fast Retransmit on 3 duplicate ACKs</li>
             </ul>
           </div>
-        </div>
 
-        <div className="space-y-6 flex flex-col">
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
-            <h3 className="text-xl font-bold text-purple-200 mb-3 flex items-center gap-2">
-              <span className="bg-purple-500/20 px-2 py-1 rounded text-sm">
-                4
-              </span>{" "}
-              Code Logics Used
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-400"></div>
+            <h3 className="text-xl font-bold text-indigo-200 mb-4 flex items-center gap-2">
+              <span className="bg-indigo-500/20 px-2 py-1 rounded text-sm">2</span>
+              How Version 24 Solves It
             </h3>
-            <p className="text-slate-300 leading-relaxed font-light mb-3">
-              Monitors the incoming Ack number. If{" "}
-              <code>duplicate_acks == 3</code>, we immediately cut SSTHRESH by
-              half, re-send the packet right now, and enter Fast Recovery.
-            </p>
-            <div className="bg-zinc-950 p-4 rounded-xl border border-slate-700/50">
-              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2">
-                TCP Reno Fast Retransmit
-              </h4>
-              <div className="flex flex-col gap-3 text-xs md:text-sm font-mono text-center">
-                <div className="bg-red-950/40 p-3 rounded-lg border border-red-800/50 text-red-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                  [Receive Dup ACK x3] → [SSTHRESH = CWND / 2] → [Retransmit
-                  Segment]
-                </div>
-              </div>
-            </div>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• Fast Retransmit: resend on 3 dup ACKs</li>
+              <li>• Fast Recovery: avoid CWND reset to 1</li>
+              <li>• SSTHRESH cut to CWND/2 on loss</li>
+              <li>• TIME_WAIT state for safe teardown</li>
+              <li>• TCP Reno RFC 5681 compliance</li>
+            </ul>
           </div>
 
-          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-            <h3 className="text-xl font-bold text-amber-200 mb-3 flex items-center gap-2">
-              <span className="bg-amber-500/20 px-2 py-1 rounded text-sm">
-                5
-              </span>{" "}
-              Crucial Engineering Steps
+          <div className="bg-slate-800/40 p-6 rounded-2xl border border-slate-700/50 relative overflow-hidden shadow-lg backdrop-blur-sm flex-1 min-h-0">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-teal-500"></div>
+            <h3 className="text-xl font-bold text-teal-200 mb-4 flex items-center gap-2">
+              <span className="bg-teal-500/20 px-2 py-1 rounded text-sm">3</span>
+              Textbook References
             </h3>
-            <ol className="text-slate-300 leading-relaxed font-mono space-y-4 list-decimal pl-6 text-sm tracking-wide">
-              <li>
-                <span className="text-amber-300 font-bold bg-amber-900/30 px-2 py-0.5 rounded">
-                  TIME_WAIT Ticker
-                </span>
-                <span className="block text-slate-400 font-sans mt-1 text-xs">
-                  Waiting 2*MSL ensures duplicate ghost packets in the network
-                  die silently.
-                </span>
-              </li>
-            </ol>
+            <ul className="text-slate-300 leading-relaxed font-light space-y-2 text-sm">
+              <li>• <strong>RFC 5681:</strong> TCP Reno Congestion Control</li>
+              <li>• <strong>Kurose & Ross:</strong> Ch 3.5.4 (TCP Evolution)</li>
+              <li>• <strong>Fast Retransmit/Recovery:</strong> Tahoe vs Reno</li>
+            </ul>
           </div>
         </div>
       </div>
     </div>,
 
-    // Slide 12: Other Versions Overview
+    // Slide 12: All Versions v0-v24
     <div
       key="12"
-      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-auto"
+      className="flex flex-col w-full p-12 sm:p-16 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative"
     >
       <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20"></div>
 
-      <div className="relative z-10 w-full max-w-5xl mx-auto">
-        <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
-          What About Versions 1-4, 6-9, 11-14, 16-23?
+      <div className="relative z-10 w-full max-w-6xl mx-auto">
+        <h2 className="text-4xl sm:text-5xl font-extrabold mb-2 text-blue-300">
+          Protocol Evolution: v0 to v24
         </h2>
+        <p className="text-slate-400 mb-8 text-lg">25 versions demonstrating incremental protocol complexity</p>
         <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
 
-        <div className="space-y-6">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
-            <h3 className="text-2xl font-semibold mb-3 text-blue-300">Versions 1-4: Foundation & Bit Encoding</h3>
-            <p className="text-slate-300 font-light leading-relaxed">
-              <strong>v1:</strong> Single character sent as 8 individual bits with reconstruction logic. 
-              <strong className="ml-4">v2:</strong> Full string transmission with NULL terminator. 
-              <strong className="ml-4">v3:</strong> Introduces parity bit detection per byte. 
-              <strong className="ml-4">v4:</strong> Extends to sequence number awareness for ordering.
-            </p>
+        <div className="grid grid-cols-1 gap-2">
+          <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-blue-400">v0:</span> Basic UDP echo (send message, receive copy)</p>
           </div>
+          <div className="bg-indigo-900/30 border border-indigo-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-indigo-400">v1:</span> Bit-level transmission (8 bits per packet)</p>
+          </div>
+          <div className="bg-purple-900/30 border border-purple-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-purple-400">v2:</span> String transmission with NULL terminator</p>
+          </div>
+          <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-blue-400">v3:</span> Parity bit error detection per byte</p>
+          </div>
+          <div className="bg-indigo-900/30 border border-indigo-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-indigo-400">v4:</span> Sequence numbers for packet ordering</p>
+          </div>
+          <div className="bg-teal-900/30 border border-teal-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-teal-400">v5:</span> ACK/NAK with cumulative acknowledgments</p>
+          </div>
+          <div className="bg-cyan-900/30 border border-cyan-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-cyan-400">v6:</span> Proper packet structure with headers</p>
+          </div>
+          <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-blue-400">v7:</span> Enhanced error handling & timeouts</p>
+          </div>
+          <div className="bg-indigo-900/30 border border-indigo-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-indigo-400">v8:</span> CRC32 checksum validation</p>
+          </div>
+          <div className="bg-purple-900/30 border border-purple-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-purple-400">v9:</span> Payload chunking & fragmentation</p>
+          </div>
+          <div className="bg-teal-900/30 border border-teal-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-teal-400">v10:</span> Sliding window protocol (Go-Back-N)</p>
+          </div>
+          <div className="bg-cyan-900/30 border border-cyan-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-cyan-400">v11:</span> Out-of-order buffering (Selective Repeat)</p>
+          </div>
+          <div className="bg-green-900/30 border border-green-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-green-400">v12:</span> Bitmap-based ACK tracking</p>
+          </div>
+          <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-blue-400">v13:</span> Connection state machine (SYN/FIN)</p>
+          </div>
+          <div className="bg-indigo-900/30 border border-indigo-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-indigo-400">v14:</span> Fast retransmit on 3 duplicate ACKs</p>
+          </div>
+          <div className="bg-amber-900/30 border border-amber-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-amber-400">v15:</span> Adaptive RTO + congestion control (Reno)</p>
+          </div>
+          <div className="bg-orange-900/30 border border-orange-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-orange-400">v16:</span> TCP timestamps (TS) option</p>
+          </div>
+          <div className="bg-yellow-900/30 border border-yellow-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-yellow-400">v17:</span> Karn's algorithm for RTT sampling</p>
+          </div>
+          <div className="bg-lime-900/30 border border-lime-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-lime-400">v18:</span> Enhanced RTT variance tracking</p>
+          </div>
+          <div className="bg-green-900/30 border border-green-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-green-400">v19:</span> Delayed ACK mechanism (ACK coalescing)</p>
+          </div>
+          <div className="bg-emerald-900/30 border border-emerald-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-emerald-400">v20:</span> SACK blocks for selective recovery</p>
+          </div>
+          <div className="bg-teal-900/30 border border-teal-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-teal-400">v21:</span> Byte-stream semantics (variable MSS)</p>
+          </div>
+          <div className="bg-cyan-900/30 border border-cyan-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-cyan-400">v22:</span> MSS negotiation at handshake</p>
+          </div>
+          <div className="bg-sky-900/30 border border-sky-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-sky-400">v23:</span> Window scaling (WSCALE) option</p>
+          </div>
+          <div className="bg-indigo-900/30 border border-indigo-500/30 p-3 rounded-lg">
+            <p className="text-sm"><span className="font-bold text-indigo-400">v24:</span> Full TCP Reno with flow control & persist</p>
+          </div>
+        </div>
 
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
-            <h3 className="text-2xl font-semibold mb-3 text-indigo-300">Versions 6-9: Reliability & Chunking</h3>
-            <p className="text-slate-300 font-light leading-relaxed">
-              <strong>v6:</strong> Packet structure formalization with explicit headers. 
-              <strong className="ml-4">v7:</strong> Enhanced error handling with better state management. 
-              <strong className="ml-4">v8:</strong> Introduces CRC32 checksum (more robust than parity). 
-              <strong className="ml-4">v9:</strong> Payload chunking optimization for throughput.
-            </p>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
-            <h3 className="text-2xl font-semibold mb-3 text-teal-300">Versions 11-14: Advanced Windowing</h3>
-            <p className="text-slate-300 font-light leading-relaxed">
-              <strong>v11:</strong> Out-of-order packet buffering (selective-repeat style). 
-              <strong className="ml-4">v12:</strong> Improved ACK tracking with bitmap support. 
-              <strong className="ml-4">v13:</strong> Connection management improvements. 
-              <strong className="ml-4">v14:</strong> Fast retransmit on duplicate ACKs.
-            </p>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
-            <h3 className="text-2xl font-semibold mb-3 text-amber-300">Versions 16-23: Congestion & Optimization</h3>
-            <p className="text-slate-300 font-light leading-relaxed">
-              <strong>v16-18:</strong> TCP timestamps and RTT measurement refinements. 
-              <strong className="ml-4">v19-21:</strong> SACK-like selective acknowledgment hints. 
-              <strong className="ml-4">v22-23:</strong> Congestion avoidance phase transitions with exponential backoff.
-            </p>
-          </div>
-
-          <div className="mt-8 p-6 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl">
-            <p className="text-slate-200 font-light leading-relaxed italic">
-              💡 <strong>Key Insight:</strong> Each version adds exactly one concept, keeping debugging manageable. The 5-demo versions (0, 5, 10, 15, 24) represent the major milestones. The intermediate versions bridge gaps and refine implementations.
-            </p>
-          </div>
+        <div className="mt-12 p-6 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl">
+          <p className="text-slate-200 font-light leading-relaxed">
+            <strong>Key Milestone Versions:</strong> v0 (basic), v5 (windowing intro), v10 (sliding window), v15 (congestion control), v24 (enterprise TCP)
+          </p>
         </div>
       </div>
     </div>,
@@ -1322,80 +977,9 @@ export default function GradPresentationPage() {
       </div>
     </div>,
 
-    // Slide 15: Performance Trends
+    // Slide 15: Key Research Questions
     <div
       key="15"
-      className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
-    >
-      <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-20"></div>
-
-      <div className="relative z-10 w-full max-w-5xl mx-auto">
-        <h2 className="text-4xl sm:text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">
-          Performance Trends
-        </h2>
-        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-indigo-500 mb-12 rounded-full"></div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
-            <h3 className="text-2xl font-semibold mb-6 text-blue-300">Reliability Improvement</h3>
-            <div className="space-y-4 text-slate-300 font-light">
-              <div className="flex justify-between items-center">
-                <span>v1 (raw bits)</span>
-                <span className="font-mono bg-blue-900/30 px-3 py-1 rounded">~22%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v5 (stop-and-wait)</span>
-                <span className="font-mono bg-indigo-900/30 px-3 py-1 rounded">~74%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v10 (sliding window)</span>
-                <span className="font-mono bg-teal-900/30 px-3 py-1 rounded">~83%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v15 (adaptive RTO)</span>
-                <span className="font-mono bg-amber-900/30 px-3 py-1 rounded">~88%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v24 (full Reno)</span>
-                <span className="font-mono bg-rose-900/30 px-3 py-1 rounded">~91%</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-400 mt-4 italic">Measured under 10% packet loss simulations</p>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-6 rounded-2xl">
-            <h3 className="text-2xl font-semibold mb-6 text-indigo-300">Throughput Growth</h3>
-            <div className="space-y-4 text-slate-300 font-light">
-              <div className="flex justify-between items-center">
-                <span>v0 (baseline)</span>
-                <span className="font-mono bg-blue-900/30 px-3 py-1 rounded">1.0x</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v4 (chunking)</span>
-                <span className="font-mono bg-indigo-900/30 px-3 py-1 rounded">2.2x</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v10 (windowing)</span>
-                <span className="font-mono bg-teal-900/30 px-3 py-1 rounded">5.1x</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v15 (slow start)</span>
-                <span className="font-mono bg-amber-900/30 px-3 py-1 rounded">6.4x</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>v24 (full adaptive)</span>
-                <span className="font-mono bg-rose-900/30 px-3 py-1 rounded">7.8x</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-400 mt-4 italic">Relative to single-bit transmission</p>
-          </div>
-        </div>
-      </div>
-    </div>,
-
-    // Slide 16: Key Research Questions
-    <div
-      key="16"
       className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-left bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
     >
       <div className="absolute top-1/4 -right-1/4 w-[600px] h-[600px] bg-slate-600 rounded-full mix-blend-multiply filter blur-[100px] opacity-20"></div>
@@ -1409,17 +993,17 @@ export default function GradPresentationPage() {
         <div className="space-y-6">
           <div className="border-l-4 border-blue-500 pl-6 py-4 bg-blue-900/20 rounded-r-lg">
             <h3 className="text-xl font-semibold text-blue-200 mb-2">Q: How much reliability from user-space logic over UDP?</h3>
-            <p className="text-slate-300 font-light">Achieved above 90% delivery success with proper ACK/retry/buffering mechanisms, approaching TCP-like reliability.</p>
+            <p className="text-slate-300 font-light">Achieved strong delivery success with proper ACK/retry/buffering mechanisms, approaching TCP-like reliability.</p>
           </div>
 
           <div className="border-l-4 border-indigo-500 pl-6 py-4 bg-indigo-900/20 rounded-r-lg">
             <h3 className="text-xl font-semibold text-indigo-200 mb-2">Q: When does throughput improve significantly?</h3>
-            <p className="text-slate-300 font-light">Sliding windows (v8 and later) and adaptive control (v15 and later) show 5x or higher gains. Chunking alone provides 2x to 3x improvement.</p>
+            <p className="text-slate-300 font-light">Sliding windows (v8 and later) and adaptive control (v15 and later) show significant gains. Chunking alone provides substantial improvement.</p>
           </div>
 
           <div className="border-l-4 border-teal-500 pl-6 py-4 bg-teal-900/20 rounded-r-lg">
             <h3 className="text-xl font-semibold text-teal-200 mb-2">Q: How does adaptive timeout outperform fixed timeout?</h3>
-            <p className="text-slate-300 font-light">~15% better RTT estimation reduces unnecessary retransmissions and improves completion time significantly.</p>
+            <p className="text-slate-300 font-light">Better RTT estimation reduces unnecessary retransmissions and improves completion time significantly.</p>
           </div>
 
           <div className="border-l-4 border-amber-500 pl-6 py-4 bg-amber-900/20 rounded-r-lg">
@@ -1435,9 +1019,9 @@ export default function GradPresentationPage() {
       </div>
     </div>,
 
-    // Slide 17: Conclusion
+    // Slide 16: Conclusion
     <div
-      key="17"
+      key="16"
       className="flex flex-col justify-center h-full w-full p-12 sm:p-20 text-center bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white relative overflow-hidden"
     >
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
@@ -1524,7 +1108,7 @@ export default function GradPresentationPage() {
     <div className="min-h-[calc(100vh-3.5rem)] bg-zinc-950 flex flex-col items-center justify-center p-2 sm:p-4">
       {/* Responsive 16:9 Aspect Ratio Container */}
       <div
-        className="relative aspect-video max-h-[85vh] bg-slate-900 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] ring-1 ring-white/10 flex-shrink-0"
+        className="relative max-h-[85vh] bg-slate-900 rounded-xl overflow-y-auto custom-scrollbar shadow-[0_0_50px_rgba(0,0,0,0.8)] ring-1 ring-white/10 flex-shrink-0"
         style={{ width: "100%", maxWidth: "calc(85vh * 16 / 9)" }}
       >
         {slides[currentSlide]}
