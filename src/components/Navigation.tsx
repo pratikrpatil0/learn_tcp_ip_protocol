@@ -10,7 +10,8 @@ const navItems = [
   { number: "1", name: "Introduction", path: "/intro" },
   { number: "2", name: "Interactive Visualizer", path: "/simulator" },
   { number: "3", name: "5 Files Demo", path: "/demonstration" },
-  { number: "4", name: "Final Presentation", path: "/grad-presentation" },
+  { number: "4", name: "Finite State Machine", path: "/finite-state-machine" },
+  { number: "5", name: "Final Presentation", path: "/grad-presentation" },
 ];
 
 export default function Navigation() {

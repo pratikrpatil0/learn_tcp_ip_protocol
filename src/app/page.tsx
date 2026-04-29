@@ -40,6 +40,16 @@ export default function Home() {
             </p>
           </Link>
 
+          <Link href="/finite-state-machine" className="group p-6 bg-white border border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center group-hover:text-blue-600">
+              Finite State Machine
+              <span className="ml-2 inline-block transition-transform group-hover:translate-x-1">→</span>
+            </h2>
+            <p className="text-gray-600">
+              Explore the sender and receiver FSM diagrams with a clear timeline chart for Versions 0, 5, 10, 15, and 24.
+            </p>
+          </Link>
+
         </div>
 
       </div>
