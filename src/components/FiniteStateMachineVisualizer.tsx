@@ -351,11 +351,11 @@ function CurrentStepBadge({ current, total }: { current: number; total: number }
 
 function ArrowMarker({ id, color }: { id: string; color: string }) {
   return (
-    <marker id={id} viewBox="0 0 42 20" markerWidth="42" markerHeight="20" refX="39" refY="10" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,10 H26" stroke="#ffffff" strokeWidth="8" strokeLinecap="round" />
-      <path d="M0,10 H26" stroke={color} strokeWidth="4" strokeLinecap="round" />
-      <path d="M26,3 L40,10 L26,17 Z" fill="#ffffff" />
-      <path d="M26,5 L37,10 L26,15 Z" fill={color} />
+    <marker id={id} viewBox="0 0 68 34" markerWidth="68" markerHeight="34" refX="62" refY="17" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,17 H46" stroke="#ffffff" strokeWidth="12" strokeLinecap="round" />
+      <path d="M0,17 H46" stroke={color} strokeWidth="6" strokeLinecap="round" />
+      <path d="M46,6 L62,17 L46,28 Z" fill="#ffffff" />
+      <path d="M46,8 L58,17 L46,26 Z" fill={color} />
     </marker>
   );
 }
@@ -379,14 +379,21 @@ function StateRail({
 }) {
   const width = 490;
   const boxWidth = 250;
-  const boxHeight = 88;
-  const gap = 48;
-  const topPad = 110;
+  const boxHeight = 120;
+  const gap = 74;
+  const topPad = 144;
   const leftX = 24;
   const rightX = width - boxWidth - 24;
   const height = topPad + states.length * (boxHeight + gap) + 38;
   const markerId = side === "sender" ? "rail-arrow-sender" : "rail-arrow-receiver";
   const loopFor = (state: string) => loops.find((loop) => loop.side === side && loop.state === state);
+  const textHalo = {
+    paintOrder: "stroke fill" as const,
+    stroke: "#ffffff",
+    strokeWidth: 4,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const
+  };
 
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white/96 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
@@ -402,7 +409,7 @@ function StateRail({
         </defs>
 
         <line x1={width / 2} y1={38} x2={width / 2} y2={height - 16} stroke="#e2e8f0" strokeWidth={3} strokeLinecap="round" />
-        <text x={width / 2} y={24} textAnchor="middle" className="book-text" style={{ fontSize: 11, fontWeight: 700, fill: accent }}>
+            <text x={width / 2} y={24} textAnchor="middle" className="book-text" style={{ fontSize: 11, fontWeight: 900, fill: accent, ...textHalo }}>
           {side === "sender" ? "Sender side" : "Receiver side"}
         </text>
 
@@ -413,7 +420,10 @@ function StateRail({
           const centerX = x + boxWidth / 2;
           const nextX = index < states.length - 1 ? (index % 2 === 0 ? rightX : leftX) : x;
           const nextCenterX = nextX + boxWidth / 2;
-          const curveDepth = Math.round(boxHeight + gap * 0.5);
+          const curveDepth = Math.round(boxHeight + gap * 1.05);
+          const midX = (centerX + nextCenterX) / 2;
+          const midY = (y + boxHeight + nextY) / 2;
+          const transitionLabel = index < states.length - 1 ? `${state} → ${states[index + 1]}` : undefined;
           const isActive = state === activeState;
           const loop = loopFor(state);
           const fill = isActive ? "rgba(14,165,233,0.10)" : "#ffffff";
@@ -424,8 +434,8 @@ function StateRail({
               : "drop-shadow(0 0 18px rgba(245,158,11,0.55))"
             : undefined;
           const loopOnRightSide = x === rightX;
-          const loopStartX = loopOnRightSide ? x + 2 : x + boxWidth - 2;
-          const loopEndX = loopOnRightSide ? x + 2 : x + boxWidth - 2;
+          const loopStartX = loopOnRightSide ? x + 8 : x + boxWidth - 8;
+          const loopEndX = loopOnRightSide ? x + 8 : x + boxWidth - 8;
           const loopControlX = loopOnRightSide ? x - 130 : x + boxWidth + 130;
           const loopLabelX = loopOnRightSide ? x - 70 : x + boxWidth + 74;
 
@@ -437,7 +447,7 @@ function StateRail({
                     d={`M ${centerX} ${y + boxHeight} C ${centerX} ${y + boxHeight + curveDepth}, ${nextCenterX} ${nextY - curveDepth}, ${nextCenterX} ${nextY}`}
                     fill="none"
                     stroke="#ffffff"
-                    strokeWidth={10}
+                    strokeWidth={12}
                     strokeLinecap="round"
                     markerEnd={`url(#${markerId})`}
                   />
@@ -445,25 +455,34 @@ function StateRail({
                     d={`M ${centerX} ${y + boxHeight} C ${centerX} ${y + boxHeight + curveDepth}, ${nextCenterX} ${nextY - curveDepth}, ${nextCenterX} ${nextY}`}
                     fill="none"
                     stroke={isActive ? accent : "#475569"}
-                    strokeWidth={4.5}
+                    strokeWidth={5.5}
                     strokeLinecap="round"
                     markerEnd={`url(#${markerId})`}
                   />
+
+                  {transitionLabel && (
+                    <g>
+                      <rect x={midX - 112} y={midY - 28} width={224} height={32} rx={10} fill="#ffffff" opacity={0.99} />
+                      <text x={midX} y={midY - 12} textAnchor="middle" className="book-text" style={{ fontSize: 11, fontWeight: 900, fill: "#0f172a", ...textHalo }}>
+                        {transitionLabel}
+                      </text>
+                    </g>
+                  )}
                 </>
               )}
 
               <rect x={x} y={y} width={boxWidth} height={boxHeight} rx={20} ry={20} fill={fill} stroke={stroke} strokeWidth={2.25} style={shadow ? { filter: shadow } : undefined} />
-              <text x={centerX} y={y + 36} textAnchor="middle" className="book-text" style={{ fontSize: 14, fontWeight: isActive ? 700 : 600, fill: "#0f172a" }}>
+              <text x={centerX} y={y + 42} textAnchor="middle" className="book-text" style={{ fontSize: 14, fontWeight: 900, fill: "#0f172a", ...textHalo }}>
                 {state}
               </text>
-              <text x={centerX} y={y + 60} textAnchor="middle" className="book-text" style={{ fontSize: 11, fill: "#475569" }}>
+              <text x={centerX} y={y + 76} textAnchor="middle" className="book-text" style={{ fontSize: 11, fontWeight: 900, fill: "#475569", ...textHalo }}>
                 {isActive ? "Current state" : "FSM state"}
               </text>
 
               {loop && (
-                <>
+                <g>
                   <path
-                    d={`M ${loopStartX} ${y + 22} C ${loopControlX} ${y - 36}, ${loopControlX} ${y + 92}, ${loopEndX} ${y + 42}`}
+                    d={`M ${loopStartX} ${y + 24} C ${loopControlX} ${y - 72}, ${loopControlX} ${y + 144}, ${loopEndX} ${y + 46}`}
                     fill="none"
                     stroke="#ffffff"
                     strokeWidth={12}
@@ -471,17 +490,19 @@ function StateRail({
                     markerEnd={`url(#${markerId})`}
                   />
                   <path
-                    d={`M ${loopStartX} ${y + 22} C ${loopControlX} ${y - 36}, ${loopControlX} ${y + 92}, ${loopEndX} ${y + 42}`}
+                    d={`M ${loopStartX} ${y + 24} C ${loopControlX} ${y - 72}, ${loopControlX} ${y + 144}, ${loopEndX} ${y + 46}`}
                     fill="none"
                     stroke={isActive ? accent : "#64748b"}
                     strokeWidth={5}
                     strokeLinecap="round"
                     markerEnd={`url(#${markerId})`}
                   />
-                  <text x={loopLabelX} y={y - 12} className="book-text" style={{ fontSize: 10, fill: isActive ? accent : "#64748b" }}>
+
+                  <rect x={loopLabelX - 74} y={y - 40} width={148} height={28} rx={11} fill="#ffffff" opacity={0.99} />
+                  <text x={loopLabelX} y={y - 18} textAnchor="middle" className="book-text" style={{ fontSize: 10, fontWeight: 900, fill: isActive ? accent : "#64748b", ...textHalo }}>
                     {loop.label}
                   </text>
-                </>
+                </g>
               )}
             </g>
           );
@@ -492,10 +513,9 @@ function StateRail({
 }
 
 function TimelinePane({ steps, currentStep }: { steps: Step[]; currentStep: number }) {
-  const rowHeight = 110;
-  const paddingTop = 80;
-  const maxHeight = 520; // cap so the timeline fits typical desktop viewports
-  const height = Math.min(Math.max(420, steps.length * rowHeight + 96), maxHeight);
+  const rowHeight = 140;
+  const paddingTop = 100;
+  const height = Math.max(620, steps.length * rowHeight + 220);
   const senderX = 180;
   const receiverX = 720;
 
@@ -516,19 +536,19 @@ function TimelinePane({ steps, currentStep }: { steps: Step[]; currentStep: numb
             <ArrowMarker id="timeline-arrow-left" color="#0ea5e9" />
           </defs>
 
-          <text x={senderX} y={36} textAnchor="middle" className="book-text" style={{ fontSize: 12, fontWeight: 700, fill: "#0ea5e9" }}>
+          <text x={senderX} y={36} textAnchor="middle" className="book-text" style={{ fontSize: 13, fontWeight: 900, fill: "#0ea5e9" }}>
             Sender
           </text>
-          <text x={receiverX} y={36} textAnchor="middle" className="book-text" style={{ fontSize: 12, fontWeight: 700, fill: "#f59e0b" }}>
+          <text x={receiverX} y={36} textAnchor="middle" className="book-text" style={{ fontSize: 13, fontWeight: 900, fill: "#f59e0b" }}>
             Receiver
           </text>
           <line x1={senderX} y1={54} x2={senderX} y2={height - 36} stroke="#0ea5e9" strokeWidth={6} strokeLinecap="round" />
           <line x1={receiverX} y1={54} x2={receiverX} y2={height - 36} stroke="#f59e0b" strokeWidth={6} strokeLinecap="round" />
 
-          <text x={senderX - 14} y={height - 8} className="book-text" style={{ fontSize: 12, fill: "#0ea5e9" }}>
+          <text x={senderX - 14} y={height - 8} className="book-text" style={{ fontSize: 12, fontWeight: 800, fill: "#0ea5e9" }}>
             t [ms]
           </text>
-          <text x={receiverX - 14} y={height - 8} className="book-text" style={{ fontSize: 12, fill: "#f59e0b" }}>
+          <text x={receiverX - 14} y={height - 8} className="book-text" style={{ fontSize: 12, fontWeight: 800, fill: "#f59e0b" }}>
             t [ms]
           </text>
 
@@ -542,26 +562,26 @@ function TimelinePane({ steps, currentStep }: { steps: Step[]; currentStep: numb
             const endX = step.direction === "receiver-to-sender" ? senderX : receiverX;
             const curve =
               step.direction === "sender-to-receiver"
-                ? `M ${startX} ${y} C ${startX + 140} ${y - 36}, ${endX - 140} ${y + 36}, ${endX} ${y}`
-                : `M ${startX} ${y} C ${startX - 140} ${y - 36}, ${endX + 140} ${y + 36}, ${endX} ${y}`;
+                ? `M ${startX} ${y} C ${startX + 150} ${y - 42}, ${endX - 150} ${y + 42}, ${endX} ${y}`
+                : `M ${startX} ${y} C ${startX - 150} ${y - 42}, ${endX + 150} ${y + 42}, ${endX} ${y}`;
 
             return (
               <g key={step.title}>
-                <rect x={22} y={y - 40} width={896} height={96} rx={16} ry={16} fill={active ? "rgba(14,165,233,0.08)" : "#ffffff"} stroke={cardStroke} strokeWidth={2} />
-                <text x={56} y={y - 18} className="book-text" style={{ fontSize: 11, fontWeight: 800, fill: "#475569" }}>
+                <rect x={22} y={y - 50} width={896} height={116} rx={18} ry={18} fill={active ? "rgba(14,165,233,0.08)" : "#ffffff"} stroke={cardStroke} strokeWidth={2.25} />
+                <text x={56} y={y - 28} className="book-text" style={{ fontSize: 11, fontWeight: 900, fill: "#475569" }}>
                   {directionLabel(step.direction)}
                 </text>
-                <text x={56} y={y - 2} className="book-text" style={{ fontSize: 14, fontWeight: 800, fill: "#0f172a" }}>
+                <text x={56} y={y - 6} className="book-text" style={{ fontSize: 15, fontWeight: 900, fill: "#0f172a" }}>
                   {step.title}
                 </text>
-                <text x={56} y={y + 16} className="book-text" style={{ fontSize: 11, fill: "#334155", maxWidth: 680 }}>
+                <text x={56} y={y + 20} className="book-text" style={{ fontSize: 12, fontWeight: 800, fill: "#334155" }}>
                   {step.detail}
                 </text>
 
-                <text x={senderX - 36} y={y - 12} textAnchor="end" className="book-text" style={{ fontSize: 11, fill: "#0ea5e9", fontWeight: 800 }}>
+                <text x={56} y={y + 44} className="book-text" style={{ fontSize: 11, fontWeight: 900, fill: "#0ea5e9" }}>
                   {step.senderState}
                 </text>
-                <text x={receiverX + 36} y={y - 12} textAnchor="start" className="book-text" style={{ fontSize: 11, fill: "#f59e0b", fontWeight: 800 }}>
+                <text x={884} y={y + 44} textAnchor="end" className="book-text" style={{ fontSize: 11, fontWeight: 900, fill: "#f59e0b" }}>
                   {step.receiverState}
                 </text>
 
@@ -572,13 +592,13 @@ function TimelinePane({ steps, currentStep }: { steps: Step[]; currentStep: numb
                     <circle cx={(senderX + receiverX) / 2} cy={y} r={7} fill={railColor} opacity={0.98}>
                       <animate attributeName="r" values="6;9;6" dur="1.2s" repeatCount="indefinite" />
                     </circle>
-                    <text x={470} y={y - 14} textAnchor="middle" className="book-text" style={{ fontSize: 11, fill: railColor, fontStyle: "italic", fontWeight: 700 }}>
+                    <text x={470} y={y - 14} textAnchor="middle" className="book-text" style={{ fontSize: 11, fill: railColor, fontStyle: "italic", fontWeight: 900 }}>
                       {step.label}
                     </text>
                   </>
                 )}
 
-                <text x={470} y={y + 42} textAnchor="middle" className="book-text" style={{ fontSize: 9, fill: "#64748b" }}>
+                <text x={470} y={y + 58} textAnchor="middle" className="book-text" style={{ fontSize: 10, fill: "#64748b", fontWeight: 800 }}>
                   {step.note}
                 </text>
               </g>
@@ -602,30 +622,59 @@ export default function FiniteStateMachineVisualizer() {
     setPlaying(false);
   }, [versionNumber]);
 
+  // explicit autoplay control using interval ref
+  const autoplayRef = React.useRef<number | null>(null);
+
+  function startAutoplay() {
+    if (autoplayRef.current) return; // already running
+    // schedule interval
+    autoplayRef.current = window.setInterval(() => {
+      setStepIndex((v) => (version.steps.length ? (v + 1) % version.steps.length : 0));
+    }, 2200) as unknown as number;
+    setPlaying(true);
+  }
+
+  function stopAutoplay() {
+    if (autoplayRef.current) {
+      window.clearInterval(autoplayRef.current);
+      autoplayRef.current = null;
+    }
+    setPlaying(false);
+  }
+
   useEffect(() => {
-    if (!playing) return;
+    return () => {
+      if (autoplayRef.current) {
+        window.clearInterval(autoplayRef.current);
+        autoplayRef.current = null;
+      }
+    };
+  }, []);
 
-    const timer = window.setTimeout(() => {
-      setStepIndex((value) => {
-        if (value >= version.steps.length - 1) {
-          setPlaying(false);
-          return value;
-        }
+  useEffect(() => {
+    const logObj = { msg: 'FSM state change', stepIndex, playing, currentTitle: version.steps[stepIndex]?.title };
+    console.log('FSM state change', logObj);
+    try {
+      // @ts-ignore
+      window.__fsm_logs = (window.__fsm_logs || []).concat([logObj]);
+    } catch (e) {}
+  }, [stepIndex, playing, version]);
 
-        return value + 1;
-      });
-    }, 1800);
-
-    return () => window.clearTimeout(timer);
-  }, [playing, version.steps.length]);
+  // runtime validation: warn if any step references a state name not present in the state's list
+  useEffect(() => {
+    const missing = version.steps.filter((s) => !version.senderStates.includes(s.senderState) || !version.receiverStates.includes(s.receiverState));
+    if (missing.length) {
+      console.warn("FSM visualizer: steps reference missing states for version", version.version, missing.map((s) => ({ title: s.title, senderState: s.senderState, receiverState: s.receiverState })));
+    }
+  }, [version]);
 
   const currentStep = version.steps[stepIndex];
   const activeSender = currentStep?.senderState ?? version.senderStates[0];
   const activeReceiver = currentStep?.receiverState ?? version.receiverStates[0];
 
   return (
-    <div style={{ fontFamily: "serif", padding: 14, background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)", color: "#0f172a", height: "calc(100vh - 72px)", overflowY: "auto", WebkitOverflowScrolling: 'touch' }}>
-      <div style={{ maxWidth: 1700, margin: "0 auto", height: "100%" }}>
+    <div style={{ fontFamily: "serif", padding: 14, background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)", color: "#0f172a", minHeight: "calc(100vh - 72px)", overflowY: "auto", WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ maxWidth: 1700, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 10 }}>
           <div>
             <div style={{ fontSize: 12, letterSpacing: "0.24em", textTransform: "uppercase", color: "#64748b" }}>Finite State Machine</div>
@@ -666,7 +715,7 @@ export default function FiniteStateMachineVisualizer() {
             >
               Prev
             </button>
-            <button onClick={() => setPlaying((value) => !value)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #0f172a", background: "#0f172a", color: "#fff" }}>
+            <button onClick={() => (playing ? stopAutoplay() : startAutoplay())} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #0f172a", background: "#0f172a", color: "#fff" }}>
               {playing ? "Pause" : "Play"}
             </button>
             <button
@@ -682,7 +731,7 @@ export default function FiniteStateMachineVisualizer() {
           </div>
         </div>
 
-        <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "minmax(360px, 1fr) minmax(760px, 1.8fr) minmax(360px, 1fr)", height: "calc(100% - 62px)" }}>
+        <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "minmax(360px, 1fr) minmax(760px, 1.8fr) minmax(360px, 1fr)" }}>
           <StateRail
             title="Sender FSM"
             summary={version.summary}
