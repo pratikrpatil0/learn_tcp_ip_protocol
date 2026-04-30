@@ -1,338 +1,333 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
-type StepDirection = "sender-to-receiver" | "receiver-to-sender" | "local";
+type StepDirection = "local" | "sender-to-receiver" | "receiver-to-sender";
+type Side = "sender" | "receiver";
 
-type FsmStep = {
-  senderState: string;
-  receiverState: string;
-  event: string;
-  detail: string;
-  direction: StepDirection;
+type StateLoop = {
+  state: string;
+  label: string;
+  side: Side;
 };
 
-type FsmVersion = {
+type Step = {
+  title: string;
+  detail: string;
+  senderState: string;
+  receiverState: string;
+  direction: StepDirection;
+  label: string;
+  note: string;
+};
+
+type Version = {
   version: number;
   label: string;
-  subtitle: string;
   summary: string;
   senderStates: string[];
   receiverStates: string[];
-  steps: FsmStep[];
+  senderLoops: StateLoop[];
+  receiverLoops: StateLoop[];
+  steps: Step[];
 };
 
-const FSM_VERSIONS: FsmVersion[] = [
+const VERSIONS: Version[] = [
   {
     version: 0,
     label: "Raw UDP Bit Transfer",
-    subtitle: "One datagram, one bit, one clear stop",
-    summary:
-      "Version 0 is the smallest FSM in the project: the sender opens a UDP socket, reads a single bit, transmits it once, and closes. The receiver listens, accepts one datagram, shows the bit, and exits.",
+    summary: "The smallest version opens sockets, reads one bit, transfers one datagram, and closes cleanly.",
     senderStates: ["Socket Setup", "Read Input Bit", "Send Datagram", "Close Socket"],
     receiverStates: ["Bind Port", "Wait For Bit", "Print Bit", "Close Socket"],
+    senderLoops: [{ state: "Read Input Bit", label: "Retry until valid", side: "sender" }],
+    receiverLoops: [{ state: "Wait For Bit", label: "Listen for packet", side: "receiver" }],
     steps: [
       {
+        title: "Setup",
+        detail: "socket() and bind() prepare the UDP channel.",
         senderState: "Socket Setup",
         receiverState: "Bind Port",
-        event: "Initialize the UDP channel",
-        detail: "Both sides open their sockets and prepare the port before any data moves.",
-        direction: "local"
+        direction: "local",
+        label: "Initialization",
+        note: "Both endpoints are created before any payload moves."
       },
       {
+        title: "Input",
+        detail: "The sender reads a single bit from the console.",
         senderState: "Read Input Bit",
         receiverState: "Wait For Bit",
-        event: "Sender reads one bit from the console",
-        detail: "The sender waits for a 0 or 1 and prepares a single-byte datagram.",
-        direction: "local"
+        direction: "local",
+        label: "Bit selection",
+        note: "The sender can stay in this state until the input is valid."
       },
       {
+        title: "Transfer",
+        detail: "One datagram carries the bit to the receiver.",
         senderState: "Send Datagram",
         receiverState: "Print Bit",
-        event: "The bit crosses from sender to receiver",
-        detail: "One UDP packet moves across the lane, then the receiver displays the value.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Bit transfer",
+        note: "This is the only network movement in version 0."
       },
       {
+        title: "Close",
+        detail: "Both sides close the socket and finish.",
         senderState: "Close Socket",
         receiverState: "Close Socket",
-        event: "Both sides shut down cleanly",
-        detail: "The transfer is complete, so the socket resources are released on both ends.",
-        direction: "local"
+        direction: "local",
+        label: "Shutdown",
+        note: "Resources are released after the transfer completes."
       }
     ]
   },
   {
     version: 5,
     label: "Parity Framed Character Transfer",
-    subtitle: "Sequence bit, payload bits, parity, ACK or NAK",
-    summary:
-      "Version 5 upgrades the FSM to a stop-and-wait character protocol. Each character becomes a framed exchange with a sequence bit, eight payload bits, parity checking, and an ACK or NAK before the next character is allowed.",
-    senderStates: [
-      "Read Character",
-      "Build Bit Frame",
-      "Send Frame",
-      "Wait For ACK/NAK",
-      "Advance Or Retry",
-      "Send Termination"
-    ],
-    receiverStates: [
-      "Listen",
-      "Read Sequence Bit",
-      "Collect Payload Bits",
-      "Check Parity",
-      "Send ACK/NAK",
-      "Reassemble Message"
-    ],
+    summary: "Frames, parity checking, and ACK or NAK handling are added. The sender waits for a response before moving on.",
+    senderStates: ["Read Character", "Build Frame", "Send Frame", "Wait For ACK", "Retry Or Advance", "Send Termination"],
+    receiverStates: ["Listen", "Read Sequence", "Collect Payload", "Check Parity", "Send ACK/NAK", "Reassemble"],
+    senderLoops: [{ state: "Wait For ACK", label: "Timeout then resend", side: "sender" }],
+    receiverLoops: [{ state: "Listen", label: "Keep listening", side: "receiver" }],
     steps: [
       {
+        title: "Frame build",
+        detail: "The sender packs parity and sequence bits around the character.",
         senderState: "Read Character",
         receiverState: "Listen",
-        event: "Load the next character to transmit",
-        detail: "The sender turns one character into a frame-ready payload before sending.",
-        direction: "local"
+        direction: "local",
+        label: "Character load",
+        note: "The receiver stays ready while the sender prepares a frame."
       },
       {
-        senderState: "Build Bit Frame",
-        receiverState: "Read Sequence Bit",
-        event: "Frame the character with sequence and parity",
-        detail: "The sender prepares the bit stream that the receiver will validate bit by bit.",
-        direction: "local"
-      },
-      {
+        title: "Frame send",
+        detail: "The framed bits travel from sender to receiver.",
         senderState: "Send Frame",
-        receiverState: "Collect Payload Bits",
-        event: "The character frame crosses the lane",
-        detail: "The sender emits the framed bits and the receiver starts reconstructing them.",
-        direction: "sender-to-receiver"
+        receiverState: "Collect Payload",
+        direction: "sender-to-receiver",
+        label: "Payload transfer",
+        note: "The whole framed character moves across the link."
       },
       {
-        senderState: "Wait For ACK/NAK",
+        title: "Parity check",
+        detail: "The receiver checks parity and prepares ACK or NAK.",
+        senderState: "Wait For ACK",
         receiverState: "Check Parity",
-        event: "Receiver validates parity and decides the response",
-        detail: "A parity match leads to ACK, while a mismatch forces a NAK and a resend.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "Integrity check",
+        note: "A bad frame sends the sender back to resend."
       },
       {
-        senderState: "Advance Or Retry",
+        title: "Advance or retry",
+        detail: "ACK advances the sender, while NAK repeats the frame.",
+        senderState: "Retry Or Advance",
         receiverState: "Send ACK/NAK",
-        event: "The sender either moves to the next character or repeats the frame",
-        detail: "ACK advances the character stream; NAK keeps the sender on the same state.",
-        direction: "local"
-      },
-      {
-        senderState: "Send Termination",
-        receiverState: "Reassemble Message",
-        event: "Termination frame closes the character stream",
-        detail: "After the null character is delivered, the receiver prints the complete message and exits.",
-        direction: "sender-to-receiver"
+        direction: "local",
+        label: "Control response",
+        note: "This is the control point of the machine."
       }
     ]
   },
   {
     version: 10,
     label: "Selective Repeat With Window Four",
-    subtitle: "Handshake first, then buffered packets and timeout recovery",
-    summary:
-      "Version 10 introduces the TCP-style handshake, a sliding window, checksum protection, retransmission timers, and a clean FIN shutdown. The receiver buffers in-window packets and acknowledges them as the window advances.",
-    senderStates: [
-      "SYN Sent",
-      "Handshake Established",
-      "Transmit Window",
-      "Wait For ACKs",
-      "Timeout Or Retransmit",
-      "FIN Sent",
-      "Closed"
+    summary: "Handshake, sliding window transmission, ACK movement, timeout recovery, and FIN shutdown are shown clearly.",
+    senderStates: ["SYN Sent", "Handshake Established", "Transmit Window", "Wait For ACKs", "Timeout Or Retransmit", "FIN Sent", "Closed"],
+    receiverStates: ["Listen", "SYN Received", "Handshake Confirmed", "Buffer Window", "Send ACKs", "Accept FIN", "Closed"],
+    senderLoops: [
+      { state: "Wait For ACKs", label: "Wait / retransmit", side: "sender" },
+      { state: "Timeout Or Retransmit", label: "Retry missing packet", side: "sender" }
     ],
-    receiverStates: [
-      "Listen",
-      "SYN Received",
-      "Handshake Confirmed",
-      "Buffer In-Window Data",
-      "Send ACKs",
-      "Accept FIN",
-      "Closed"
-    ],
+    receiverLoops: [{ state: "Buffer Window", label: "Buffer until window advances", side: "receiver" }],
     steps: [
       {
+        title: "Handshake open",
+        detail: "The sender starts the session with SYN.",
         senderState: "SYN Sent",
         receiverState: "Listen",
-        event: "Start the TCP-like handshake",
-        detail: "The sender moves into SYN_SENT while the receiver waits for the first control packet.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Handshake begins",
+        note: "The receiver stays in listen mode until the open signal arrives."
       },
       {
+        title: "Handshake confirm",
+        detail: "The receiver confirms the connection parameters.",
         senderState: "Handshake Established",
         receiverState: "Handshake Confirmed",
-        event: "SYN-ACK and final ACK complete the connection setup",
-        detail: "Both sides now agree on the negotiated session and the data phase can begin.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "Connection ready",
+        note: "Both sides now share a live session."
       },
       {
+        title: "Window flow",
+        detail: "A four-packet window moves across the link.",
         senderState: "Transmit Window",
-        receiverState: "Buffer In-Window Data",
-        event: "Packets stream through the sliding window",
-        detail: "The sender fills a four-packet window while the receiver stores valid packets in order.",
-        direction: "sender-to-receiver"
+        receiverState: "Buffer Window",
+        direction: "sender-to-receiver",
+        label: "Window flow",
+        note: "Buffered packets keep the stream ordered."
       },
       {
+        title: "ACK advance",
+        detail: "Cumulative ACKs move the send window forward.",
         senderState: "Wait For ACKs",
         receiverState: "Send ACKs",
-        event: "ACKs move the window forward",
-        detail: "Cumulative progress and duplicate ACKs drive the sender’s retransmission logic.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "ACK return",
+        note: "The sender can only move ahead after the ACK returns."
       },
       {
+        title: "Recovery",
+        detail: "The missing packet is retransmitted after timeout.",
         senderState: "Timeout Or Retransmit",
-        receiverState: "Buffer In-Window Data",
-        event: "Lost packets are resent after a timer expires",
-        detail: "Selective repeat keeps only the missing packet in motion instead of restarting the stream.",
-        direction: "sender-to-receiver"
+        receiverState: "Buffer Window",
+        direction: "sender-to-receiver",
+        label: "Recovery path",
+        note: "Selective repeat only resends the missing piece."
       },
       {
+        title: "Shutdown",
+        detail: "FIN completes the session.",
         senderState: "FIN Sent",
         receiverState: "Accept FIN",
-        event: "The transfer ends with a FIN/ACK close",
-        detail: "The shutdown phase confirms that both sides have delivered the payload and may close cleanly.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Close sequence",
+        note: "The connection ends after the final exchange."
       }
     ]
   },
   {
     version: 15,
     label: "Chunked Stream With Congestion Control",
-    subtitle: "Cumulative ACKs, adaptive RTO, and fast retransmit",
-    summary:
-      "Version 15 keeps the handshake, but the data path becomes more TCP-like: the sender transmits chunked payloads under congestion control, tracks RTT for adaptive RTO, and triggers fast retransmit after duplicate ACKs.",
-    senderStates: [
-      "SYN Sent",
-      "Connection Established",
-      "Send Chunk",
-      "Update Cwnd And RTO",
-      "Fast Recovery",
-      "FIN Sent",
-      "Closed"
+    summary: "Chunking, congestion window tuning, duplicate ACK handling, and fast recovery are included in the diagram.",
+    senderStates: ["SYN Sent", "Connection Established", "Send Chunk", "Update Cwnd And RTO", "Fast Recovery", "FIN Sent", "Closed"],
+    receiverStates: ["Listen", "Handshake Confirmed", "Buffer Stream", "Send Cumulative ACK", "Hold Duplicate ACK", "Accept FIN", "Closed"],
+    senderLoops: [
+      { state: "Update Cwnd And RTO", label: "Adjust after ACK", side: "sender" },
+      { state: "Fast Recovery", label: "Wait for recovery", side: "sender" }
     ],
-    receiverStates: [
-      "Listen",
-      "Handshake Confirmed",
-      "Buffer Chunk Stream",
-      "Send Cumulative ACK",
-      "Hold Duplicate ACK",
-      "Accept FIN",
-      "Closed"
-    ],
+    receiverLoops: [{ state: "Hold Duplicate ACK", label: "Duplicate ACKs continue", side: "receiver" }],
     steps: [
       {
+        title: "Open",
+        detail: "The sender opens the session with SYN.",
         senderState: "SYN Sent",
         receiverState: "Listen",
-        event: "Handshake starts the session",
-        detail: "The sender enters the control phase and the receiver prepares to acknowledge the session.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Start connection",
+        note: "The control path opens before chunks are sent."
       },
       {
+        title: "Handshake",
+        detail: "The receiver confirms the stream.",
         senderState: "Connection Established",
         receiverState: "Handshake Confirmed",
-        event: "The final handshake ACK opens the stream",
-        detail: "With the connection established, the sender can begin chunking the message payload.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "Open stream",
+        note: "The channel is ready for chunk transfer."
       },
       {
+        title: "Chunks",
+        detail: "Chunked payload moves under congestion control.",
         senderState: "Send Chunk",
-        receiverState: "Buffer Chunk Stream",
-        event: "8-byte chunks move across the network",
-        detail: "The receiver buffers chunks and keeps the cumulative sequence moving forward.",
-        direction: "sender-to-receiver"
+        receiverState: "Buffer Stream",
+        direction: "sender-to-receiver",
+        label: "Chunk transfer",
+        note: "The receiver buffers while the sender keeps sending."
       },
       {
+        title: "Window update",
+        detail: "ACK updates cwnd and the adaptive timeout.",
         senderState: "Update Cwnd And RTO",
         receiverState: "Send Cumulative ACK",
-        event: "ACKs update congestion and timing state",
-        detail: "Each good ACK can grow cwnd, while RTT samples adjust the adaptive timeout.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "Window tuning",
+        note: "A good ACK adjusts the sending window."
       },
       {
+        title: "Recovery",
+        detail: "Duplicate ACK triggers fast retransmit.",
         senderState: "Fast Recovery",
         receiverState: "Hold Duplicate ACK",
-        event: "Duplicate ACKs trigger fast retransmit",
-        detail: "Three duplicate cumulative ACKs push the sender into recovery without waiting for a timeout.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "Fast recovery",
+        note: "The sender stays in recovery until the gap is fixed."
       },
       {
+        title: "Close",
+        detail: "FIN ends the connection cleanly.",
         senderState: "FIN Sent",
         receiverState: "Accept FIN",
-        event: "The stream closes cleanly",
-        detail: "The sender sends FIN and the receiver answers with the final ACK before shutdown.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Shutdown",
+        note: "The stream ends after the final FIN / ACK exchange."
       }
     ]
   },
   {
     version: 24,
     label: "Full TCP-Like Session",
-    subtitle: "Options negotiation, SACK, timestamps, and TIME_WAIT",
-    summary:
-      "Version 24 is the full TCP-like FSM. It negotiates MSS, window scale, timestamps, and SACK during the handshake, uses advertised receive windows during data transfer, and ends with the classic FIN and TIME_WAIT close.",
-    senderStates: [
-      "CLOSED",
-      "SYN_SENT",
-      "ESTABLISHED",
-      "DATA_TRANSFER",
-      "FIN_WAIT_1",
-      "FIN_WAIT_2",
-      "TIME_WAIT",
-      "CLOSED"
+    summary: "The full TCP-like FSM includes handshake, options negotiation, data transfer, and TIME_WAIT closing.",
+    senderStates: ["CLOSED", "SYN_SENT", "ESTABLISHED", "DATA_TRANSFER", "FIN_WAIT_1", "TIME_WAIT", "CLOSED"],
+    receiverStates: ["CLOSED", "LISTEN", "SYN_RECEIVED", "ESTABLISHED", "CLOSING", "CLOSED"],
+    senderLoops: [
+      { state: "DATA_TRANSFER", label: "Continue sending", side: "sender" },
+      { state: "TIME_WAIT", label: "Hold for 2MSL", side: "sender" }
     ],
-    receiverStates: [
-      "CLOSED",
-      "LISTEN",
-      "SYN_RECEIVED",
-      "ESTABLISHED",
-      "CLOSING",
-      "CLOSED"
-    ],
+    receiverLoops: [{ state: "ESTABLISHED", label: "Continue receiving", side: "receiver" }],
     steps: [
       {
+        title: "Handshake",
+        detail: "SYN opens the connection.",
         senderState: "CLOSED",
         receiverState: "LISTEN",
-        event: "The TCP-like handshake begins",
-        detail: "The sender opens with SYN while the receiver waits in LISTEN for a valid connection attempt.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Handshake begins",
+        note: "The sender opens while the receiver waits."
       },
       {
+        title: "Options",
+        detail: "SYN,ACK negotiates options.",
         senderState: "SYN_SENT",
         receiverState: "SYN_RECEIVED",
-        event: "SYN-ACK negotiates options",
-        detail: "MSS, window scale, and timestamps are exchanged before both sides move to ESTABLISHED.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "Options negotiation",
+        note: "MSS, window scale, timestamps, and SACK can be negotiated."
       },
       {
+        title: "Established",
+        detail: "ACK moves both sides to ESTABLISHED.",
         senderState: "ESTABLISHED",
         receiverState: "ESTABLISHED",
-        event: "Data transfer uses SACK and receive windows",
-        detail: "The sender moves bulk data, while the receiver advertises rwnd and sends selective acknowledgements.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Session established",
+        note: "The data path is now open."
       },
       {
+        title: "Data path",
+        detail: "Data and SACK keep the stream moving.",
         senderState: "DATA_TRANSFER",
         receiverState: "ESTABLISHED",
-        event: "Delayed ACKs and persist probes keep the session stable",
-        detail: "When the window shrinks or packets are missing, the receiver uses ACK timing and SACK state to guide recovery.",
-        direction: "receiver-to-sender"
+        direction: "receiver-to-sender",
+        label: "Data path",
+        note: "The receiver returns feedback and the sender continues."
       },
       {
+        title: "Close",
+        detail: "FIN enters shutdown.",
         senderState: "FIN_WAIT_1",
         receiverState: "CLOSING",
-        event: "FIN starts the shutdown path",
-        detail: "The sender moves to FIN_WAIT_1, the receiver answers, and the connection enters its closing phase.",
-        direction: "sender-to-receiver"
+        direction: "sender-to-receiver",
+        label: "Close sequence",
+        note: "The session begins graceful shutdown."
       },
       {
+        title: "Wait",
+        detail: "TIME_WAIT holds long enough to absorb stray packets.",
         senderState: "TIME_WAIT",
         receiverState: "CLOSED",
-        event: "TIME_WAIT expires and the session ends",
-        detail: "The sender keeps the final wait timer long enough to absorb stray packets before both sides are fully closed.",
-        direction: "local"
+        direction: "local",
+        label: "Final wait",
+        note: "Late packets do not disturb the next session."
       }
     ]
   }
@@ -341,301 +336,391 @@ const FSM_VERSIONS: FsmVersion[] = [
 function directionLabel(direction: StepDirection) {
   if (direction === "sender-to-receiver") return "Sender -> Receiver";
   if (direction === "receiver-to-sender") return "Receiver -> Sender";
-  return "Local state update";
+  return "Local transition";
 }
 
 function CurrentStepBadge({ current, total }: { current: number; total: number }) {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm">
       <span className="text-cyan-300">Step {current + 1}</span>
-      <span className="text-slate-400">/</span>
+      <span className="text-slate-500">/</span>
       <span>{total}</span>
     </div>
   );
 }
 
+function ArrowMarker({ id, color }: { id: string; color: string }) {
+  return (
+    <marker id={id} viewBox="0 0 42 20" markerWidth="42" markerHeight="20" refX="39" refY="10" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,10 H26" stroke="#ffffff" strokeWidth="8" strokeLinecap="round" />
+      <path d="M0,10 H26" stroke={color} strokeWidth="4" strokeLinecap="round" />
+      <path d="M26,3 L40,10 L26,17 Z" fill="#ffffff" />
+      <path d="M26,5 L37,10 L26,15 Z" fill={color} />
+    </marker>
+  );
+}
+
 function StateRail({
   title,
-  subtitle,
+  summary,
   states,
+  loops,
   activeState,
-  accent
+  accent,
+  side
 }: {
   title: string;
-  subtitle: string;
+  summary: string;
   states: string[];
+  loops: StateLoop[];
   activeState: string;
   accent: string;
+  side: Side;
 }) {
-  const activeIndex = Math.max(0, states.indexOf(activeState));
+  const width = 490;
+  const boxWidth = 250;
+  const boxHeight = 88;
+  const gap = 48;
+  const topPad = 110;
+  const leftX = 24;
+  const rightX = width - boxWidth - 24;
+  const height = topPad + states.length * (boxHeight + gap) + 38;
+  const markerId = side === "sender" ? "rail-arrow-sender" : "rail-arrow-receiver";
+  const loopFor = (state: string) => loops.find((loop) => loop.side === side && loop.state === state);
 
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
-      <div className="mb-5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-slate-400">{title}</p>
-        <h3 className="mt-2 text-2xl font-bold text-slate-900">{subtitle}</h3>
+    <div className="rounded-[28px] border border-slate-200 bg-white/96 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+      <div className="mb-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400">{title}</p>
+        <h3 className="mt-1 text-xl font-bold text-slate-900">State transition diagram</h3>
+        <p className="mt-1 text-xs text-slate-500">{summary}</p>
       </div>
 
-      <div className="space-y-3">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <ArrowMarker id={markerId} color="#0f172a" />
+        </defs>
+
+        <line x1={width / 2} y1={38} x2={width / 2} y2={height - 16} stroke="#e2e8f0" strokeWidth={3} strokeLinecap="round" />
+        <text x={width / 2} y={24} textAnchor="middle" className="book-text" style={{ fontSize: 11, fontWeight: 700, fill: accent }}>
+          {side === "sender" ? "Sender side" : "Receiver side"}
+        </text>
+
         {states.map((state, index) => {
-          const active = index === activeIndex;
-          const completed = index < activeIndex;
+          const y = topPad + index * (boxHeight + gap);
+          const nextY = y + boxHeight + gap;
+          const x = index % 2 === 0 ? leftX : rightX;
+          const centerX = x + boxWidth / 2;
+          const nextX = index < states.length - 1 ? (index % 2 === 0 ? rightX : leftX) : x;
+          const nextCenterX = nextX + boxWidth / 2;
+          const curveDepth = Math.round(boxHeight + gap * 0.5);
+          const isActive = state === activeState;
+          const loop = loopFor(state);
+          const fill = isActive ? "rgba(14,165,233,0.10)" : "#ffffff";
+          const stroke = isActive ? accent : "#0f172a";
+          const shadow = isActive
+            ? side === "sender"
+              ? "drop-shadow(0 0 18px rgba(56,189,248,0.55))"
+              : "drop-shadow(0 0 18px rgba(245,158,11,0.55))"
+            : undefined;
+          const loopOnRightSide = x === rightX;
+          const loopStartX = loopOnRightSide ? x + 2 : x + boxWidth - 2;
+          const loopEndX = loopOnRightSide ? x + 2 : x + boxWidth - 2;
+          const loopControlX = loopOnRightSide ? x - 130 : x + boxWidth + 130;
+          const loopLabelX = loopOnRightSide ? x - 70 : x + boxWidth + 74;
 
           return (
-            <div key={state} className="relative pl-12">
+            <g key={state}>
               {index < states.length - 1 && (
-                <div
-                  className={`absolute left-5 top-10 h-[28px] w-px ${
-                    completed || active ? accent : "bg-slate-200"
-                  }`}
-                />
+                <>
+                  <path
+                    d={`M ${centerX} ${y + boxHeight} C ${centerX} ${y + boxHeight + curveDepth}, ${nextCenterX} ${nextY - curveDepth}, ${nextCenterX} ${nextY}`}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth={10}
+                    strokeLinecap="round"
+                    markerEnd={`url(#${markerId})`}
+                  />
+                  <path
+                    d={`M ${centerX} ${y + boxHeight} C ${centerX} ${y + boxHeight + curveDepth}, ${nextCenterX} ${nextY - curveDepth}, ${nextCenterX} ${nextY}`}
+                    fill="none"
+                    stroke={isActive ? accent : "#475569"}
+                    strokeWidth={4.5}
+                    strokeLinecap="round"
+                    markerEnd={`url(#${markerId})`}
+                  />
+                </>
               )}
 
-              <div
-                className={`absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold transition-all ${
-                  active
-                    ? `${accent} bg-white text-slate-900 shadow-lg scale-105`
-                    : completed
-                      ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-slate-50 text-slate-500"
-                }`}
-              >
-                {index + 1}
-              </div>
+              <rect x={x} y={y} width={boxWidth} height={boxHeight} rx={20} ry={20} fill={fill} stroke={stroke} strokeWidth={2.25} style={shadow ? { filter: shadow } : undefined} />
+              <text x={centerX} y={y + 36} textAnchor="middle" className="book-text" style={{ fontSize: 14, fontWeight: isActive ? 700 : 600, fill: "#0f172a" }}>
+                {state}
+              </text>
+              <text x={centerX} y={y + 60} textAnchor="middle" className="book-text" style={{ fontSize: 11, fill: "#475569" }}>
+                {isActive ? "Current state" : "FSM state"}
+              </text>
 
-              <div
-                className={`rounded-2xl border px-4 py-3 transition-all ${
-                  active
-                    ? "border-slate-900 bg-slate-950 text-white shadow-[0_12px_30px_rgba(15,23,42,0.16)]"
-                    : completed
-                      ? "border-emerald-200 bg-emerald-50/70 text-slate-800"
-                      : "border-slate-200 bg-slate-50 text-slate-600"
-                }`}
-              >
-                <div className="text-sm font-semibold leading-tight">{state}</div>
-                {active && <div className="mt-1 text-[11px] uppercase tracking-[0.25em] text-cyan-300">Current state</div>}
-              </div>
-            </div>
+              {loop && (
+                <>
+                  <path
+                    d={`M ${loopStartX} ${y + 22} C ${loopControlX} ${y - 36}, ${loopControlX} ${y + 92}, ${loopEndX} ${y + 42}`}
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth={12}
+                    strokeLinecap="round"
+                    markerEnd={`url(#${markerId})`}
+                  />
+                  <path
+                    d={`M ${loopStartX} ${y + 22} C ${loopControlX} ${y - 36}, ${loopControlX} ${y + 92}, ${loopEndX} ${y + 42}`}
+                    fill="none"
+                    stroke={isActive ? accent : "#64748b"}
+                    strokeWidth={5}
+                    strokeLinecap="round"
+                    markerEnd={`url(#${markerId})`}
+                  />
+                  <text x={loopLabelX} y={y - 12} className="book-text" style={{ fontSize: 10, fill: isActive ? accent : "#64748b" }}>
+                    {loop.label}
+                  </text>
+                </>
+              )}
+            </g>
           );
         })}
-      </div>
+      </svg>
     </div>
   );
 }
 
-function TimelineStep({
-  step,
-  active
-}: {
-  step: FsmStep;
-  active: boolean;
-}) {
-  const arrowId = `${step.event.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-arrow`;
+function TimelinePane({ steps, currentStep }: { steps: Step[]; currentStep: number }) {
+  const rowHeight = 110;
+  const paddingTop = 80;
+  const maxHeight = 520; // cap so the timeline fits typical desktop viewports
+  const height = Math.min(Math.max(420, steps.length * rowHeight + 96), maxHeight);
+  const senderX = 180;
+  const receiverX = 720;
 
   return (
-    <div className={`rounded-[24px] border p-4 transition-all ${active ? "border-slate-900 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.12)]" : "border-slate-200 bg-slate-50/80"}`}>
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="rounded-[28px] border border-slate-200 bg-white/96 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <div className="text-[11px] font-bold uppercase tracking-[0.32em] text-slate-400">{directionLabel(step.direction)}</div>
-          <div className="mt-1 text-lg font-bold text-slate-900">{step.event}</div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400">Timeline diagram</p>
+          <h3 className="mt-1 text-xl font-bold text-slate-900">Interactive step flow</h3>
         </div>
-        <div className="rounded-full border border-slate-200 bg-slate-900 px-3 py-1 text-[11px] font-semibold text-white">Timeline</div>
+        <div className="rounded-full bg-slate-900 px-3 py-1 text-[10px] font-semibold text-cyan-300">Clear arrow transitions</div>
       </div>
 
-      <div className="grid grid-cols-[1fr_minmax(260px,520px)_1fr] items-center gap-3 sm:gap-5">
-        <div className={`rounded-2xl border px-4 py-3 text-right ${active ? "border-cyan-400 bg-cyan-50" : "border-slate-200 bg-white"}`}>
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Sender</div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">{step.senderState}</div>
-        </div>
+      <div className="rounded-[20px] border border-slate-200 bg-gradient-to-b from-slate-50 to-white p-3">
+        <svg viewBox={`0 0 940 ${height}`} width="100%" height={height} xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <ArrowMarker id="timeline-arrow-right" color="#334155" />
+            <ArrowMarker id="timeline-arrow-left" color="#0ea5e9" />
+          </defs>
 
-        <div className="relative flex min-h-[76px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-3 py-4">
-          {step.direction === "local" ? (
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="rounded-full border border-slate-300 bg-slate-900 px-4 py-1 text-[11px] font-semibold text-white">{step.detail}</div>
-              <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400">Internal state shift</div>
-            </div>
-          ) : (
-            <>
-              <svg viewBox="0 0 1000 70" className="h-10 w-full overflow-visible" aria-hidden="true">
-                <defs>
-                  <marker id={arrowId} markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
-                    <path d="M0,0 L12,6 L0,12 z" fill={step.direction === "sender-to-receiver" ? "#0f172a" : "#0ea5e9"} />
-                  </marker>
-                </defs>
-                {step.direction === "sender-to-receiver" ? (
-                  <line x1="120" y1="34" x2="880" y2="34" stroke="#0f172a" strokeWidth="4" markerEnd={`url(#${arrowId})`} />
-                ) : (
-                  <line x1="880" y1="34" x2="120" y2="34" stroke="#0ea5e9" strokeWidth="4" markerEnd={`url(#${arrowId})`} />
+          <text x={senderX} y={36} textAnchor="middle" className="book-text" style={{ fontSize: 12, fontWeight: 700, fill: "#0ea5e9" }}>
+            Sender
+          </text>
+          <text x={receiverX} y={36} textAnchor="middle" className="book-text" style={{ fontSize: 12, fontWeight: 700, fill: "#f59e0b" }}>
+            Receiver
+          </text>
+          <line x1={senderX} y1={54} x2={senderX} y2={height - 36} stroke="#0ea5e9" strokeWidth={6} strokeLinecap="round" />
+          <line x1={receiverX} y1={54} x2={receiverX} y2={height - 36} stroke="#f59e0b" strokeWidth={6} strokeLinecap="round" />
+
+          <text x={senderX - 14} y={height - 8} className="book-text" style={{ fontSize: 12, fill: "#0ea5e9" }}>
+            t [ms]
+          </text>
+          <text x={receiverX - 14} y={height - 8} className="book-text" style={{ fontSize: 12, fill: "#f59e0b" }}>
+            t [ms]
+          </text>
+
+          {steps.map((step, index) => {
+            const y = paddingTop + index * rowHeight;
+            const active = index === currentStep;
+            const cardStroke = active ? (step.direction === "receiver-to-sender" ? "#38bdf8" : "#f59e0b") : "#cbd5e1";
+            const arrowColor = step.direction === "receiver-to-sender" ? (active ? "#38bdf8" : "#7dd3fc") : (active ? "#f59e0b" : "#fdba74");
+            const railColor = step.direction === "receiver-to-sender" ? "#0369a1" : "#b45309";
+            const startX = step.direction === "receiver-to-sender" ? receiverX : senderX;
+            const endX = step.direction === "receiver-to-sender" ? senderX : receiverX;
+            const curve =
+              step.direction === "sender-to-receiver"
+                ? `M ${startX} ${y} C ${startX + 140} ${y - 36}, ${endX - 140} ${y + 36}, ${endX} ${y}`
+                : `M ${startX} ${y} C ${startX - 140} ${y - 36}, ${endX + 140} ${y + 36}, ${endX} ${y}`;
+
+            return (
+              <g key={step.title}>
+                <rect x={22} y={y - 40} width={896} height={96} rx={16} ry={16} fill={active ? "rgba(14,165,233,0.08)" : "#ffffff"} stroke={cardStroke} strokeWidth={2} />
+                <text x={56} y={y - 18} className="book-text" style={{ fontSize: 11, fontWeight: 800, fill: "#475569" }}>
+                  {directionLabel(step.direction)}
+                </text>
+                <text x={56} y={y - 2} className="book-text" style={{ fontSize: 14, fontWeight: 800, fill: "#0f172a" }}>
+                  {step.title}
+                </text>
+                <text x={56} y={y + 16} className="book-text" style={{ fontSize: 11, fill: "#334155", maxWidth: 680 }}>
+                  {step.detail}
+                </text>
+
+                <text x={senderX - 36} y={y - 12} textAnchor="end" className="book-text" style={{ fontSize: 11, fill: "#0ea5e9", fontWeight: 800 }}>
+                  {step.senderState}
+                </text>
+                <text x={receiverX + 36} y={y - 12} textAnchor="start" className="book-text" style={{ fontSize: 11, fill: "#f59e0b", fontWeight: 800 }}>
+                  {step.receiverState}
+                </text>
+
+                {step.direction !== "local" && (
+                  <>
+                    <path d={curve} fill="none" stroke="#ffffff" strokeWidth={12} strokeLinecap="round" markerEnd={step.direction === "sender-to-receiver" ? "url(#timeline-arrow-right)" : "url(#timeline-arrow-left)"} />
+                    <path d={curve} fill="none" stroke={arrowColor} strokeWidth={5} strokeLinecap="round" markerEnd={step.direction === "sender-to-receiver" ? "url(#timeline-arrow-right)" : "url(#timeline-arrow-left)"} />
+                    <circle cx={(senderX + receiverX) / 2} cy={y} r={7} fill={railColor} opacity={0.98}>
+                      <animate attributeName="r" values="6;9;6" dur="1.2s" repeatCount="indefinite" />
+                    </circle>
+                    <text x={470} y={y - 14} textAnchor="middle" className="book-text" style={{ fontSize: 11, fill: railColor, fontStyle: "italic", fontWeight: 700 }}>
+                      {step.label}
+                    </text>
+                  </>
                 )}
-                <circle cx="120" cy="34" r="8" fill="#ffffff" stroke="#0f172a" strokeWidth="3" />
-                <circle cx="880" cy="34" r="8" fill="#ffffff" stroke="#0f172a" strokeWidth="3" />
-              </svg>
-              <div className="-mt-1 rounded-full border border-slate-200 bg-slate-900 px-4 py-1 text-[11px] font-semibold text-cyan-300">{step.detail}</div>
-            </>
-          )}
-        </div>
 
-        <div className={`rounded-2xl border px-4 py-3 ${active ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`}>
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Receiver</div>
-          <div className="mt-1 text-sm font-semibold text-slate-900">{step.receiverState}</div>
-        </div>
+                <text x={470} y={y + 42} textAnchor="middle" className="book-text" style={{ fontSize: 9, fill: "#64748b" }}>
+                  {step.note}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
       </div>
     </div>
   );
 }
 
 export default function FiniteStateMachineVisualizer() {
-  const [activeVersion, setActiveVersion] = useState(FSM_VERSIONS[0].version);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [versionNumber, setVersionNumber] = useState(VERSIONS[0].version);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
 
-  const version = useMemo(
-    () => FSM_VERSIONS.find((entry) => entry.version === activeVersion) ?? FSM_VERSIONS[0],
-    [activeVersion]
-  );
+  const version = useMemo(() => VERSIONS.find((entry) => entry.version === versionNumber) ?? VERSIONS[0], [versionNumber]);
 
   useEffect(() => {
-    setCurrentStep(0);
-    setIsPlaying(false);
-  }, [activeVersion]);
+    setStepIndex(0);
+    setPlaying(false);
+  }, [versionNumber]);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!playing) return;
 
-    const timer = setTimeout(() => {
-      setCurrentStep((value) => {
+    const timer = window.setTimeout(() => {
+      setStepIndex((value) => {
         if (value >= version.steps.length - 1) {
-          setIsPlaying(false);
+          setPlaying(false);
           return value;
         }
 
         return value + 1;
       });
-    }, 2400);
+    }, 1800);
 
-    return () => clearTimeout(timer);
-  }, [isPlaying, currentStep, version.steps.length]);
+    return () => window.clearTimeout(timer);
+  }, [playing, version.steps.length]);
 
-  const activeStep = version.steps[Math.min(currentStep, version.steps.length - 1)] ?? version.steps[0];
+  const currentStep = version.steps[stepIndex];
+  const activeSender = currentStep?.senderState ?? version.senderStates[0];
+  const activeReceiver = currentStep?.receiverState ?? version.receiverStates[0];
 
   return (
-    <div className="min-h-full bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.10),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#eff6ff_100%)] text-slate-900">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-        <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white/95 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
-          <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.35em] text-cyan-700">
-                Finite State Machine and Timeline Diagram Visualization
-              </div>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                Sender and receiver state flow for versions 0, 5, 10, 15, and 24
-              </h1>
-              <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
-                The copied source files in <span className="font-semibold text-slate-900">finite_state_machine/</span> are visualized here as FSM lanes and a clear timeline, so the page shows what happens internally instead of showing raw code lines.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-                Version
-                <select
-                  value={activeVersion}
-                  onChange={(event) => setActiveVersion(Number(event.target.value))}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none"
-                >
-                  {FSM_VERSIONS.map((entry) => (
-                    <option key={entry.version} value={entry.version}>
-                      v{entry.version} - {entry.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(0)}
-                  className="rounded-xl bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-slate-700 transition hover:bg-slate-100"
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep((value) => Math.max(0, value - 1))}
-                  disabled={currentStep === 0}
-                  className="rounded-xl bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsPlaying((value) => !value)}
-                  className={`rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-white transition ${
-                    isPlaying ? "bg-amber-500 hover:bg-amber-400" : "bg-slate-900 hover:bg-slate-800"
-                  }`}
-                >
-                  {isPlaying ? "Pause" : "Play"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep((value) => Math.min(version.steps.length - 1, value + 1))}
-                  disabled={currentStep >= version.steps.length - 1}
-                  className="rounded-xl bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+    <div style={{ fontFamily: "serif", padding: 14, background: "linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%)", color: "#0f172a", height: "calc(100vh - 72px)", overflowY: "auto", WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ maxWidth: 1700, margin: "0 auto", height: "100%" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 12, letterSpacing: "0.24em", textTransform: "uppercase", color: "#64748b" }}>Finite State Machine</div>
+            <h2 style={{ margin: "4px 0 0 0", fontSize: 26 }}>TCP-style sender and receiver FSMs</h2>
           </div>
 
-          <div className="grid gap-6 px-5 py-5 lg:grid-cols-[1fr_1.2fr_1fr]">
-            <div className="rounded-[28px] border border-slate-200 bg-slate-950 px-5 py-5 text-white shadow-[0_20px_50px_rgba(15,23,42,0.15)] lg:col-span-3">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.35em] text-cyan-300">What is happening now</div>
-                  <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{version.label}</h2>
-                </div>
-                <CurrentStepBadge current={currentStep} total={version.steps.length} />
-              </div>
-              <p className="mt-3 max-w-5xl text-sm leading-6 text-slate-300 sm:text-base">{version.summary}</p>
-            </div>
-
-            <StateRail
-              title="Sender FSM"
-              subtitle="Client-side control flow"
-              states={version.senderStates}
-              activeState={activeStep.senderState}
-              accent="border-cyan-400"
-            />
-
-            <div className="rounded-[28px] border border-slate-200 bg-white/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] lg:col-span-1 lg:row-span-2">
-              <div className="mb-5 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-slate-400">Timeline diagram</p>
-                  <h3 className="mt-2 text-2xl font-bold text-slate-900">Message flow and state changes</h3>
-                </div>
-                <div className="rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold text-cyan-300">Arrow clear view</div>
-              </div>
-
-              <div className="max-h-[920px] space-y-4 overflow-y-auto pr-1">
-                {version.steps.map((step, index) => (
-                  <TimelineStep key={`${version.version}-${step.event}`} step={step} active={index === currentStep} />
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <label style={{ fontSize: 13 }}>
+              Version:
+              <select
+                value={versionNumber}
+                onChange={(event) => setVersionNumber(Number(event.target.value))}
+                style={{ marginLeft: 8, padding: "6px 8px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a" }}
+              >
+                {VERSIONS.map((entry) => (
+                  <option key={entry.version} value={entry.version}>
+                    {entry.version} - {entry.label}
+                  </option>
                 ))}
+              </select>
+            </label>
+            <button
+              onClick={() => {
+                setStepIndex(0);
+                setPlaying(false);
+              }}
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a" }}
+            >
+              Reset
+            </button>
+            <button
+              onClick={() => {
+                setPlaying(false);
+                setStepIndex((value) => Math.max(0, value - 1));
+              }}
+              disabled={stepIndex === 0}
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", opacity: stepIndex === 0 ? 0.55 : 1 }}
+            >
+              Prev
+            </button>
+            <button onClick={() => setPlaying((value) => !value)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #0f172a", background: "#0f172a", color: "#fff" }}>
+              {playing ? "Pause" : "Play"}
+            </button>
+            <button
+              onClick={() => {
+                setPlaying(false);
+                setStepIndex((value) => Math.min(version.steps.length - 1, value + 1));
+              }}
+              disabled={stepIndex >= version.steps.length - 1}
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#0f172a", opacity: stepIndex >= version.steps.length - 1 ? 0.55 : 1 }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 items-start" style={{ gridTemplateColumns: "minmax(360px, 1fr) minmax(760px, 1.8fr) minmax(360px, 1fr)", height: "calc(100% - 62px)" }}>
+          <StateRail
+            title="Sender FSM"
+            summary={version.summary}
+            states={version.senderStates}
+            loops={version.senderLoops}
+            activeState={activeSender}
+            accent="#38bdf8"
+            side="sender"
+          />
+
+          <div className="space-y-6">
+            <div className="rounded-[34px] border border-slate-200 bg-white/96 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.35em] text-slate-400">What is happening now</p>
+                  <h3 className="mt-2 text-3xl font-bold text-slate-900">{currentStep?.title ?? version.steps[0].title}</h3>
+                  <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{version.summary}</p>
+                </div>
+                <CurrentStepBadge current={stepIndex} total={version.steps.length} />
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <span className="font-semibold text-slate-900">Current move:</span> {currentStep?.detail}
               </div>
             </div>
 
-            <StateRail
-              title="Receiver FSM"
-              subtitle="Server-side control flow"
-              states={version.receiverStates}
-              activeState={activeStep.receiverState}
-              accent="border-amber-400"
-            />
+            <TimelinePane steps={version.steps} currentStep={stepIndex} />
           </div>
 
-          <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-600">
-            Current move: <span className="font-semibold text-slate-900">{activeStep.event}</span> - {activeStep.detail}
-          </div>
+          <StateRail
+            title="Receiver FSM"
+            summary={version.summary}
+            states={version.receiverStates}
+            loops={version.receiverLoops}
+            activeState={activeReceiver}
+            accent="#f59e0b"
+            side="receiver"
+          />
         </div>
       </div>
     </div>
